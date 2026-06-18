@@ -129,6 +129,21 @@ fun AppNavigationCoordinator(
                             modifier = Modifier.testTag("nav_home")
                         )
 
+                        // Option 1.5: Shorts
+                        NavigationBarItem(
+                            selected = currentRoute == "shorts",
+                            onClick = {
+                                if (currentRoute != "shorts") {
+                                    navController.navigate("shorts") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            icon = { Icon(if (currentRoute == "shorts") Icons.Default.Bolt else Icons.Outlined.Bolt, contentDescription = "Shorts", modifier = Modifier.size(24.dp)) },
+                            label = { Text("Shorts", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            modifier = Modifier.testTag("nav_shorts")
+                        )
+
                         // Option 2: Search
                         NavigationBarItem(
                             selected = currentRoute == "search",
