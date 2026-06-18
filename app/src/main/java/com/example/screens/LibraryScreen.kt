@@ -37,6 +37,7 @@ fun LibraryScreen(
     viewModel: VideoViewModel,
     onNavigateToPlaylistDetail: (String) -> Unit,
     onNavigateToChannel: (String) -> Unit,
+    onNavigateToCreateChannel: () -> Unit,
     onVideoClick: (Video) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -57,19 +58,10 @@ fun LibraryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Library", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = { Text(text = "You", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
                 actions = {
-                    // Profile Link
-                    IconButton(onClick = { onNavigateToChannel("user_me") }) {
-                        AsyncImage(
-                            model = currentUser?.avatarUrl?.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" }
-                                ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop",
-                            contentDescription = "My avatar",
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(RoundedCornerShape(14.dp)),
-                            contentScale = ContentScale.Crop
-                        )
+                    IconButton(onClick = { viewModel.performLogout() }) {
+                        Icon(Icons.Default.Logout, contentDescription = "Log out")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -84,6 +76,53 @@ fun LibraryScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // Profile Card
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (currentUser?.hasChannel == true) {
+                                onNavigateToChannel("user_me")
+                            } else {
+                                onNavigateToCreateChannel()
+                            }
+                        }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    AsyncImage(
+                        model = currentUser?.avatarUrl?.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" }
+                            ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop",
+                        contentDescription = "My avatar",
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                    
+                    Column {
+                        Text(
+                            text = currentUser?.displayName ?: "User",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        )
+                        Text(
+                            text = currentUser?.email ?: "",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = "View channel \u203A",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+
             // 0. Subscriptions horizontal scroll
             if (subscribedChannels.isNotEmpty()) {
                 item {
@@ -128,11 +167,17 @@ fun LibraryScreen(
             // 1. Watch History horizontal scroll
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "History",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.History, contentDescription = "History Icon", modifier = Modifier.size(24.dp))
+                        Text(
+                            text = "History",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
                     if (watchHistory.isEmpty()) {
                         Surface(

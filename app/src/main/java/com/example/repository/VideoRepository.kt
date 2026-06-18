@@ -338,6 +338,14 @@ class VideoRepository {
     }
 
     // --- Channels ---
+    fun updateUserChannelProfile(displayName: String, username: String) {
+        _currentUser.value = _currentUser.value?.copy(
+            displayName = displayName,
+            username = username,
+            hasChannel = true
+        )
+    }
+
     fun updateChannel(name: String, bio: String, avatarUrl: String, bannerUrl: String) {
         _currentUser.value = _currentUser.value?.copy(
             displayName = name,

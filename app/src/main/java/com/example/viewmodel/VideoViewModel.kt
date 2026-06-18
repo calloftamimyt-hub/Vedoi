@@ -202,6 +202,10 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
         }
     }
 
+    fun createChannel(displayName: String, username: String) {
+        repository.updateUserChannelProfile(displayName, username)
+    }
+
     // --- Media Controls & UI States ---
     fun selectCategory(category: String) {
         _selectedCategory.value = category

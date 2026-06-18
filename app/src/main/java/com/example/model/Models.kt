@@ -11,7 +11,8 @@ data class UserProfile(
     val bannerUrl: String = "",
     val subscribersCount: Int = 0,
     val bio: String = "No bio yet.",
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val hasChannel: Boolean = false
 )
 
 data class Video(

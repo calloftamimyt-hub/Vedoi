@@ -175,12 +175,12 @@ fun AppNavigationCoordinator(
                         )
 
                         // Option 4: a circle. Next to the circle is the profile option.
-                        val isProfileSelected = currentRoute?.startsWith("channel/") == true
+                        val isProfileSelected = currentRoute == "library"
                         NavigationBarItem(
                             selected = isProfileSelected,
                             onClick = {
                                 if (!isProfileSelected) {
-                                    navController.navigate("channel/user_me") {
+                                    navController.navigate("library") {
                                         launchSingleTop = true
                                     }
                                 }
@@ -310,6 +310,7 @@ fun AppNavigationCoordinator(
                     viewModel = viewModel,
                     onNavigateToPlaylistDetail = { playlistId -> navController.navigate("playlist/$playlistId") },
                     onNavigateToChannel = { channelId -> navController.navigate("channel/$channelId") },
+                    onNavigateToCreateChannel = { navController.navigate("create_channel") },
                     onVideoClick = { video ->
                         viewModel.playVideo(video)
                         navController.navigate("player")
@@ -352,6 +353,19 @@ fun AppNavigationCoordinator(
                     onVideoClick = { video ->
                         viewModel.playVideo(video)
                         navController.navigate("player")
+                    }
+                )
+            }
+
+            // Create Channel
+            composable("create_channel") {
+                com.example.screens.CreateChannelScreen(
+                    viewModel = viewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onChannelCreated = {
+                        navController.navigate("channel/user_me") {
+                            popUpTo("library") { inclusive = false }
+                        }
                     }
                 )
             }
