@@ -144,21 +144,6 @@ fun AppNavigationCoordinator(
                             modifier = Modifier.testTag("nav_shorts")
                         )
 
-                        // Option 2: Search
-                        NavigationBarItem(
-                            selected = currentRoute == "search",
-                            onClick = {
-                                if (currentRoute != "search") {
-                                    navController.navigate("search") {
-                                        launchSingleTop = true
-                                    }
-                                }
-                            },
-                            icon = { Icon(if (currentRoute == "search") Icons.Default.Search else Icons.Outlined.Search, contentDescription = "Search", modifier = Modifier.size(24.dp)) },
-                            label = { Text("Search", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                            modifier = Modifier.testTag("nav_search")
-                        )
-
                         // Option 3: a plus icon
                         NavigationBarItem(
                             selected = currentRoute == "upload",
@@ -172,6 +157,21 @@ fun AppNavigationCoordinator(
                             icon = { Icon(Icons.Default.Add, contentDescription = "Upload", modifier = Modifier.size(28.dp)) },
                             label = { Text("Create", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                             modifier = Modifier.testTag("nav_upload")
+                        )
+
+                        // Option 3.5: a circle icon for Subscriptions
+                        NavigationBarItem(
+                            selected = currentRoute == "subscriptions",
+                            onClick = {
+                                if (currentRoute != "subscriptions") {
+                                    navController.navigate("subscriptions") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            icon = { Icon(if (currentRoute == "subscriptions") Icons.Default.AccountCircle else Icons.Outlined.AccountCircle, contentDescription = "Subscriptions", modifier = Modifier.size(24.dp)) },
+                            label = { Text("Following", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            modifier = Modifier.testTag("nav_subscriptions")
                         )
 
                         // Option 4: a circle. Next to the circle is the profile option.
