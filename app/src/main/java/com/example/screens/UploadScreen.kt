@@ -770,6 +770,7 @@ fun InteractiveUploadFormScreen(
                     description.ifEmpty { "Created with Creator Studio. #$selectedCategory" },
                     selectedCategory,
                     formattedDuration,
+                    (mode == "Shorts"),
                     context
                 )
             }

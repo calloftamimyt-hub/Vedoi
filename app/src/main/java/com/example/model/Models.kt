@@ -96,5 +96,6 @@ data class UploadProgress(
     val isFailed: Boolean = false,
     val isCompleted: Boolean = false,
     val videoLocalPath: String = "",
-    val thumbnailLocalPath: String = ""
+    val thumbnailLocalPath: String = "",
+    val isShort: Boolean = false
 )

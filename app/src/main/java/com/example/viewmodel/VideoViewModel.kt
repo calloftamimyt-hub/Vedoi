@@ -483,8 +483,8 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
         }
     }
 
-    fun requestVideoUpload(title: String, description: String, category: String, duration: String, context: android.content.Context) {
-        repository.uploadVideo(title, description, category, duration, context)
+    fun requestVideoUpload(title: String, description: String, category: String, duration: String, isShort: Boolean = false, context: android.content.Context) {
+        repository.uploadVideo(title, description, category, duration, isShort, context)
     }
 
     fun retryUploadTask(taskId: String) {
