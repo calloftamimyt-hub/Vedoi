@@ -1,0 +1,84 @@
+-- Supabase Schema Script for ViewTube
+-- Paste this script directly into your Supabase Dashboard -> SQL Editor and run it!
+
+-- 1. Create 'user_profiles' table
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    username TEXT NOT NULL,
+    "displayName" TEXT NOT NULL,
+    "avatarUrl" TEXT DEFAULT '',
+    "bannerUrl" TEXT DEFAULT '',
+    "subscribersCount" INTEGER DEFAULT 0,
+    bio TEXT DEFAULT 'Welcome to ViewTube!',
+    "createdAt" BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+    "hasChannel" BOOLEAN DEFAULT false,
+    "channelCategory" TEXT DEFAULT '',
+    "channelKeywords" TEXT DEFAULT '',
+    password TEXT NOT NULL
+);
+
+-- Enable select, insert, update public access for prototyping
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select" ON public.user_profiles FOR SELECT USING (true);
+CREATE POLICY "Allow public insert" ON public.user_profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update" ON public.user_profiles FOR UPDATE USING (true);
+
+-- 2. Create 'videos' table
+CREATE TABLE IF NOT EXISTS public.videos (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    "videoUrl" TEXT NOT NULL,
+    "thumbnailUrl" TEXT NOT NULL,
+    duration TEXT NOT NULL,
+    "viewsCount" INTEGER DEFAULT 0,
+    "likesCount" INTEGER DEFAULT 0,
+    "dislikesCount" INTEGER DEFAULT 0,
+    "commentsCount" INTEGER DEFAULT 0,
+    category TEXT DEFAULT 'All',
+    "channelId" TEXT NOT NULL,
+    "channelName" TEXT NOT NULL,
+    "channelAvatarUrl" TEXT DEFAULT '',
+    "createdAt" BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+    "isShort" BOOLEAN DEFAULT false
+);
+
+ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select" ON public.videos FOR SELECT USING (true);
+CREATE POLICY "Allow public insert" ON public.videos FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update" ON public.videos FOR UPDATE USING (true);
+
+-- 3. Create 'comments' table
+CREATE TABLE IF NOT EXISTS public.comments (
+    id TEXT PRIMARY KEY,
+    "videoId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "userName" TEXT NOT NULL,
+    "userAvatarUrl" TEXT DEFAULT '',
+    content TEXT NOT NULL,
+    "likesCount" INTEGER DEFAULT 0,
+    "isLikedByMe" BOOLEAN DEFAULT false,
+    "createdAt" BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
+);
+
+ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select" ON public.comments FOR SELECT USING (true);
+CREATE POLICY "Allow public insert" ON public.comments FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public delete" ON public.comments FOR DELETE USING (true);
+
+-- 4. Create 'playlists' table
+CREATE TABLE IF NOT EXISTS public.playlists (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    "isPublic" BOOLEAN DEFAULT true,
+    "userId" TEXT NOT NULL,
+    "videoIds" jsonb DEFAULT '[]'::jsonb,
+    "createdAt" BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
+);
+
+ALTER TABLE public.playlists ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select" ON public.playlists FOR SELECT USING (true);
+CREATE POLICY "Allow public insert" ON public.playlists FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update" ON public.playlists FOR UPDATE USING (true);

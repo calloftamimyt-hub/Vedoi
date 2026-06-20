@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import java.util.UUID
 
 class VideoRepository {
@@ -19,7 +22,19 @@ class VideoRepository {
 
     // Database simulation for local fallback
     private val _videos = MutableStateFlow<List<Video>>(emptyList())
-    val videos: StateFlow<List<Video>> = _videos.asStateFlow()
+    private val _networkVideos = MutableStateFlow<List<Video>>(emptyList())
+
+    val videos: StateFlow<List<Video>> = kotlinx.coroutines.flow.combine(
+        _currentUser, 
+        _networkVideos, 
+        _videos
+    ) { user: UserProfile?, netList: List<Video>, defaultList: List<Video> ->
+        if (user != null) {
+            netList
+        } else {
+            defaultList
+        }
+    }.stateIn(CoroutineScope(Dispatchers.Default + SupervisorJob()), SharingStarted.Eagerly, emptyList())
 
     private val _comments = MutableStateFlow<Map<String, List<Comment>>>(emptyMap()) // videoId -> comments
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
@@ -38,6 +53,7 @@ class VideoRepository {
     val uploadTasks: StateFlow<List<UploadProgress>> = _uploadTasks.asStateFlow()
 
     init {
+        _videos.value = getDefaultVideos()
         // Hydrate from Supabase
         setupSupabaseData()
     }
@@ -150,15 +166,11 @@ class VideoRepository {
             try {
                 // Fetch from Supabase via Retrofit
                 val networkVideos = SupabaseClient.api.getVideos()
-                if (networkVideos.isEmpty()) {
-                    _videos.value = getDefaultVideos()
-                } else {
-                    _videos.value = networkVideos
-                }
+                _networkVideos.value = networkVideos
             } catch (e: Exception) {
-                // If tables do not exist or error, start with beautiful curated list
+                // If tables do not exist or error, start with empty list for real users
                 e.printStackTrace()
-                _videos.value = getDefaultVideos()
+                _networkVideos.value = emptyList()
             }
 
             try {
@@ -759,13 +771,14 @@ class VideoRepository {
 
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                 _videos.value = listOf(newVideo) + _videos.value
+                _networkVideos.value = listOf(newVideo) + _networkVideos.value
 
                 // Create subscriber notification about new uploaded video
                 val notifs = _notifications.value.toMutableList()
                 notifs.add(0, NotificationItem(
                     type = NotificationType.SYSTEM,
                     title = "Video Upload Completed!",
-                    message = "Your video '$title' has been transcoded and published successfully to our S3 Cloudflare R2 bucket."
+                    message = "Your video '$title' has been transcoded and published successfully to ViewTube."
                 ))
                 _notifications.value = notifs
             }

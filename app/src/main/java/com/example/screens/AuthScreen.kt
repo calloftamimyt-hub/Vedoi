@@ -265,7 +265,17 @@ fun AuthScreen(
                         enabled = !isAuthenticating
                     ) {
                         if (isAuthenticating) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                                Text("Wait for the time...", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            }
                         } else {
                             Text(
                                 text = when (activeMode) {

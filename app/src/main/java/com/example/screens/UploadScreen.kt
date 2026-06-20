@@ -748,18 +748,17 @@ fun InteractiveUploadFormScreen(
             
             // Simulating real S3 Cloudflare upload interaction progress
             coroutineScope.launch {
-                uploadStatusMessage = "Establishing connection to Cloudflare R2 bucket..."
-                delay(1200)
+                uploadStatusMessage = "Connecting to ViewTube servers..."
+                delay(1000)
                 
-                uploadStatusMessage = "Uploading binary chunks to 04fcb334fa07a6aa40a8160b776e0d8d.r2.cloudflarestorage.com..."
-                while (currentProgressPercentage < 1.0f) {
-                    delay(400)
-                    currentProgressPercentage += 0.20f
-                    if (currentProgressPercentage >= 1.0f) currentProgressPercentage = 0.99f
+                uploadStatusMessage = "Uploading video segments and processing media..."
+                while (currentProgressPercentage < 0.95f) {
+                    delay(300)
+                    currentProgressPercentage = (currentProgressPercentage + 0.15f).coerceAtMost(0.95f)
                 }
                 
-                uploadStatusMessage = "Authenticating & Registering Video details in Supabase schema..."
-                delay(1000)
+                uploadStatusMessage = "Registering video metadata..."
+                delay(800)
                 currentProgressPercentage = 1.0f
                 uploadFinishedStatus = true
                 uploadStatusMessage = "Video published successfully!"
@@ -1098,18 +1097,20 @@ fun InteractiveUploadFormScreen(
     if (showProgressDialog) {
         AlertDialog(
             onDismissRequest = { /* Prevent dismiss while uploading */ },
+            containerColor = MaterialTheme.colorScheme.surface,
             icon = {
                 if (uploadFinishedStatus) {
-                    Icon(Icons.Default.CloudDone, contentDescription = null, tint = Color.Green, modifier = Modifier.size(42.dp))
+                    Icon(Icons.Default.CloudDone, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(42.dp))
                 } else {
                     Icon(Icons.Default.CloudSync, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(42.dp))
                 }
             },
             title = {
                 Text(
-                    text = if (uploadFinishedStatus) "Published!" else "Uploading to Cloudflare R2",
+                    text = if (uploadFinishedStatus) "Published!" else "Uploading to ViewTube",
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
@@ -1121,9 +1122,10 @@ fun InteractiveUploadFormScreen(
                 ) {
                     Text(
                         text = uploadStatusMessage,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Medium
                     )
                     
                     if (!uploadFinishedStatus) {
@@ -1133,16 +1135,17 @@ fun InteractiveUploadFormScreen(
                         )
                         Text(
                             text = "${(currentProgressPercentage * 100).toInt()}%",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.primary
                         )
                     } else {
                         Text(
-                            text = "Your media file is completely uploaded to our Cloudflare S3 and registered live in Supabase. Your subscribers can view it immediately!",
-                            fontSize = 12.sp,
+                            text = "Your media file is completely uploaded to ViewTube. Your subscribers can view it immediately!",
+                            fontSize = 13.sp,
                             textAlign = TextAlign.Center,
-                            color = Color.Green
+                            color = Color(0xFF2E7D32),
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }

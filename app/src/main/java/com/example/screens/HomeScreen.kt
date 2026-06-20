@@ -112,7 +112,7 @@ fun HomeScreen(
                             modifier = Modifier.size(28.dp)
                         )
                         Text(
-                            text = "Circle",
+                            text = "ViewTube",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-0.5).sp
@@ -183,13 +183,46 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 if (categoryVideos.isEmpty()) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = false
-                    ) {
-                        items(5) {
-                            SkeletonVideoCard()
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    if (currentUser != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Text(
+                                    text = "No video",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Be the first to publish a new video!",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            userScrollEnabled = false
+                        ) {
+                            items(5) {
+                                SkeletonVideoCard()
+                                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            }
                         }
                     }
                 } else {
