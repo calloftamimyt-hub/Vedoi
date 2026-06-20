@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,10 +67,11 @@ fun VideoItemCard(
     video: Video,
     onClick: () -> Unit,
     onChannelClick: (String) -> Unit,
+    onDeleteClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp >= 600
+    var showMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier
@@ -78,10 +79,10 @@ fun VideoItemCard(
             .clickable(onClick = onClick)
             .testTag("video_card_${video.id}"),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(0.dp) // YouTube uses full-bleed for elegant design
+        shape = RoundedCornerShape(0.dp)
     ) {
         Column {
-            // Thumbnail container with absolute Aspect Ratio & Time Indicator
+            // Thumbnail container
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -98,7 +99,6 @@ fun VideoItemCard(
                     )
                 )
 
-                // Timestamp Ribbon
                 Surface(
                     color = Color.Black.copy(alpha = 0.82f),
                     shape = RoundedCornerShape(4.dp),
@@ -115,12 +115,10 @@ fun VideoItemCard(
                     )
                 }
 
-                // Make-believe watch progress for demonstration 
-                // Using hash of title to generate a seemingly random but consistent progress [0.0 - 1.0]
                 val randomProgress = (video.title.hashCode() % 100) / 100f
                 if (randomProgress > 0.1f) {
                     LinearProgressIndicator(
-                        progress = randomProgress,
+                        progress = { randomProgress },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
@@ -138,7 +136,6 @@ fun VideoItemCard(
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Channel Avatar with feedback
                 AsyncImage(
                     model = video.channelAvatarUrl.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" },
                     contentDescription = "Channel Avatar",
@@ -149,7 +146,6 @@ fun VideoItemCard(
                         .clickable { onChannelClick(video.channelId) }
                 )
 
-                // Text Description block
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = video.title,
@@ -173,16 +169,49 @@ fun VideoItemCard(
                     )
                 }
 
-                // Options Button
-                IconButton(
-                    onClick = { /* Save or options trigger */ },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "More video options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More video options",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        if (onDeleteClick != null) {
+                            DropdownMenuItem(
+                                text = { Text("Delete Video", color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    showMenu = false
+                                    onDeleteClick()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Save to Playlist") },
+                            onClick = { showMenu = false },
+                            leadingIcon = { Icon(Icons.Default.PlaylistAdd, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share") },
+                            onClick = { showMenu = false },
+                            leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }
+                        )
+                    }
                 }
             }
         }
@@ -217,7 +246,6 @@ fun VideoMiniPlayer(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(end = 4.dp)
                 ) {
-                    // Left: Small Video frame
                     Box(
                         modifier = Modifier
                             .width(110.dp)
@@ -234,7 +262,6 @@ fun VideoMiniPlayer(
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    // Title & Channel
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = activeVideo.title,
@@ -252,7 +279,6 @@ fun VideoMiniPlayer(
                         )
                     }
 
-                    // Play/Pause Action Option
                     IconButton(onClick = { /* Pause simulation */ }) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
@@ -261,7 +287,6 @@ fun VideoMiniPlayer(
                         )
                     }
 
-                    // Close MiniPlayer
                     IconButton(onClick = onClose) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -275,7 +300,6 @@ fun VideoMiniPlayer(
     }
 }
 
-// Formatting Utilities
 fun formatNumber(number: Int): String {
     return when {
         number >= 1_000_000 -> String.format("%.1fM", number / 1_000_000f).replace(".0", "")

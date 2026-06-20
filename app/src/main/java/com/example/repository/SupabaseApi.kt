@@ -40,6 +40,9 @@ interface SupabaseApi {
     @DELETE("comments")
     suspend fun deleteComment(@Query("id") id: String, @Query("userId") userId: String)
     
+    @DELETE("videos")
+    suspend fun deleteVideo(@Query("id") id: String, @Query("channelId") channelId: String)
+    
     @GET("playlists?select=*")
     suspend fun getPlaylists(): List<Playlist>
     

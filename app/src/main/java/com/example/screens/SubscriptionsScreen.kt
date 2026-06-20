@@ -88,10 +88,16 @@ fun SubscriptionsScreen(
                 }
 
                 items(subscriptionVideos) { video ->
+                    val currentUser by viewModel.currentUser.collectAsState()
+                    val isDeletable = video.channelId == currentUser?.id || 
+                                      video.id.contains("demo", ignoreCase = true) ||
+                                      video.videoUrl.contains("commondatastorage", ignoreCase = true)
+
                     VideoItemCard(
                         video = video,
                         onClick = { onVideoClick(video) },
-                        onChannelClick = onNavigateToChannel
+                        onChannelClick = onNavigateToChannel,
+                        onDeleteClick = if (isDeletable) { { viewModel.deleteVideo(video.id) } } else null
                     )
                 }
             }

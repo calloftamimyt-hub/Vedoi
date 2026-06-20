@@ -429,10 +429,12 @@ fun ChannelScreen(
                         }
                     } else {
                         items(channelVideos) { v ->
+                            val isMyChannel = channelId == "user_me" || channelId == currentUser?.id
                             VideoItemCard(
                                 video = v,
                                 onClick = { onVideoClick(v) },
-                                onChannelClick = {}
+                                onChannelClick = {},
+                                onDeleteClick = if (isMyChannel) { { viewModel.deleteVideo(v.id) } } else null
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                         }

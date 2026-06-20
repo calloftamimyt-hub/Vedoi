@@ -20,6 +20,19 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
     private val _isAuthenticating = MutableStateFlow(false)
     val isAuthenticating = _isAuthenticating.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
+
+    fun refreshVideos() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            repository.refreshVideos()
+            // Wait a small amount for the repository logic to finish IO
+            kotlinx.coroutines.delay(1000)
+            _isRefreshing.value = false
+        }
+    }
+
     private val _hasSeenOnboarding = MutableStateFlow(false)
     val hasSeenOnboarding = _hasSeenOnboarding.asStateFlow()
 
@@ -343,10 +356,10 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
     private fun filterCategory(category: String) {
         val list = repository.videos.value
         _categoryVideos.value = when {
-            category == "All" -> list.filter { !it.isShort }
-            category == "Trending" -> list.filter { !it.isShort }.sortedByDescending { it.viewsCount }
-            category == "Shorts" -> list.filter { it.isShort }
-            else -> list.filter { !it.isShort && it.category.equals(category, ignoreCase = true) }
+            category == "All" -> list // Include everything in All feed
+            category == "Trending" -> list.sortedByDescending { it.viewsCount }
+            category == "Shorts" -> list.filter { it.isShort || it.category == "Shorts" }
+            else -> list.filter { it.category.equals(category, ignoreCase = true) }
         }
     }
 
@@ -418,6 +431,10 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
     }
 
     // --- Comments Logic ---
+    fun deleteVideo(videoId: String) {
+        repository.deleteVideo(videoId)
+    }
+
     private fun loadCommentsForVideo(videoId: String) {
         viewModelScope.launch {
             repository.getCommentsForVideo(videoId).collect {

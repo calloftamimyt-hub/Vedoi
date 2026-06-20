@@ -24,13 +24,7 @@ class VideoRepository {
     private val _videos = MutableStateFlow<List<Video>>(emptyList())
     private val _networkVideos = MutableStateFlow<List<Video>>(emptyList())
 
-    val videos: StateFlow<List<Video>> = kotlinx.coroutines.flow.combine(
-        _currentUser, 
-        _networkVideos, 
-        _videos
-    ) { user: UserProfile?, netList: List<Video>, defaultList: List<Video> ->
-        netList
-    }.stateIn(CoroutineScope(Dispatchers.Default + SupervisorJob()), SharingStarted.Eagerly, emptyList())
+    val videos: StateFlow<List<Video>> = _networkVideos.asStateFlow()
 
     private val _comments = MutableStateFlow<Map<String, List<Comment>>>(emptyMap()) // videoId -> comments
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
@@ -49,24 +43,17 @@ class VideoRepository {
     val uploadTasks: StateFlow<List<UploadProgress>> = _uploadTasks.asStateFlow()
 
     init {
-        _videos.value = getDefaultVideos()
         // Hydrate from Supabase
-        setupSupabaseData()
+        refreshVideos()
     }
 
-    private fun getDefaultVideos(): List<Video> {
-        return emptyList()
-    }
-
-    private fun setupSupabaseData() {
-        GlobalScope.launch {
+    fun refreshVideos() {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Fetch from Supabase via Retrofit
                 val networkVideos = SupabaseClient.api.getVideos()
                 _networkVideos.value = networkVideos
                 _videos.value = networkVideos
             } catch (e: Exception) {
-                // If tables do not exist or error, start with empty list for real users
                 e.printStackTrace()
                 _networkVideos.value = emptyList()
                 _videos.value = emptyList()
@@ -470,6 +457,33 @@ class VideoRepository {
         }
     }
 
+    fun deleteVideo(videoId: String) {
+        val me = _currentUser.value ?: return
+        val videoToDelete = _videos.value.find { it.id == videoId } ?: return
+        
+        // Allow deletion if:
+        // 1. the user is the owner
+        // 2. OR it's a demo video (identified by ID or URL)
+        val isDemo = videoId.contains("demo", ignoreCase = true) || 
+                     videoToDelete.videoUrl.contains("commondatastorage", ignoreCase = true) ||
+                     videoToDelete.videoUrl.contains("googlevideo", ignoreCase = true)
+
+        if (videoToDelete.channelId != me.id && !isDemo) return
+        
+        _videos.value = _videos.value.filterNot { it.id == videoId }
+        _networkVideos.value = _networkVideos.value.filterNot { it.id == videoId }
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // If it's a real video in DB, try to delete it
+                // For demo videos, the channelId might be wrong, so we use videoToDelete.channelId
+                SupabaseClient.api.deleteVideo(videoId, videoToDelete.channelId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     // --- Search System ---
     fun getSearchHistory(): StateFlow<List<SearchHistoryItem>> = _searchHistory
 
@@ -667,12 +681,15 @@ class VideoRepository {
             notificationManager.notify(notificationId, builder.build())
 
             // Once finished, insert the video live into our feed!
+            val r2BaseUrl = com.example.BuildConfig.CLOUDFLARE_R2_URL.removeSuffix("/")
+            val fileName = "video_" + UUID.randomUUID().toString().take(8) + (if (isShort) ".mp4" else ".mp4")
+            
             val newVideo = Video(
-                id = "vid_upload_" + UUID.randomUUID().toString().take(6),
+                id = "vid_" + UUID.randomUUID().toString().take(8),
                 title = title,
                 description = description,
-                // Using general placeholder sample video
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+                // Using the real Cloudflare R2 URL structure
+                videoUrl = "$r2BaseUrl/$fileName",
                 thumbnailUrl = "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop",
                 duration = duration.ifEmpty { "04:30" },
                 category = if (isShort) "Shorts" else category,
@@ -731,12 +748,15 @@ class VideoRepository {
                 }
             }
 
+            val r2BaseUrl = com.example.BuildConfig.CLOUDFLARE_R2_URL.removeSuffix("/")
+            val fileName = "video_retry_" + UUID.randomUUID().toString().take(8) + ".mp4"
             val me = _currentUser.value ?: return@launch
+
             val newVideo = Video(
-                id = "vid_upload_retry_" + UUID.randomUUID().toString().take(4),
+                id = "vid_retry_" + UUID.randomUUID().toString().take(8),
                 title = task.title,
-                description = "Successfully re-uploaded with resilient R2 fallback.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+                description = "Re-uploaded with resilient R2 fallback.",
+                videoUrl = "$r2BaseUrl/$fileName",
                 thumbnailUrl = "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&auto=format&fit=crop",
                 duration = "05:12",
                 category = if (task.isShort) "Shorts" else "Lifestyle",

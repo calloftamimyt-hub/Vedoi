@@ -172,16 +172,12 @@ fun HomeScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
 
-            var isRefreshing by remember { mutableStateOf(false) }
+            val isRefreshing by viewModel.isRefreshing.collectAsState()
 
             // Main infinite list of videos
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = {
-                    isRefreshing = true
-                    // Simulate refresh since mock data is loaded instantly
-                    isRefreshing = false 
-                },
+                onRefresh = { viewModel.refreshVideos() },
                 modifier = Modifier.fillMaxSize()
             ) {
                 if (categoryVideos.isEmpty()) {
@@ -268,10 +264,15 @@ fun HomeScreen(
                         }
                         
                         items(categoryVideos) { video ->
+                            val isDeletable = video.channelId == currentUser?.id || 
+                                              video.id.contains("demo", ignoreCase = true) ||
+                                              video.videoUrl.contains("commondatastorage", ignoreCase = true)
+
                             VideoItemCard(
                                 video = video,
                                 onClick = { onVideoClick(video) },
-                                onChannelClick = onNavigateToChannel
+                                onChannelClick = onNavigateToChannel,
+                                onDeleteClick = if (isDeletable) { { viewModel.deleteVideo(video.id) } } else null
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                         }

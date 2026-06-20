@@ -229,10 +229,16 @@ fun SearchScreen(
                             .testTag("search_results")
                     ) {
                         items(searchResults) { video ->
+                            val currentUser by viewModel.currentUser.collectAsState()
+                            val isDeletable = video.channelId == currentUser?.id || 
+                                              video.id.contains("demo", ignoreCase = true) ||
+                                              video.videoUrl.contains("commondatastorage", ignoreCase = true)
+
                             VideoItemCard(
                                 video = video,
                                 onClick = { viewModel.playVideo(video); onVideoClick(video) },
-                                onChannelClick = onNavigateToChannel
+                                onChannelClick = onNavigateToChannel,
+                                onDeleteClick = if (isDeletable) { { viewModel.deleteVideo(video.id) } } else null
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                         }
