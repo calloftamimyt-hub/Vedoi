@@ -52,6 +52,15 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
             _hasSeenOnboarding.value = true
             prefs.edit().putBoolean("has_seen_onboarding", true).apply()
         }
+
+        viewModelScope.launch {
+            repository.currentUser.collect { updatedUser ->
+                if (updatedUser != null) {
+                    saveUserSessionToPrefs(updatedUser)
+                    repository.updateLocalRegisteredList(updatedUser)
+                }
+            }
+        }
     }
 
     fun completeOnboarding() {

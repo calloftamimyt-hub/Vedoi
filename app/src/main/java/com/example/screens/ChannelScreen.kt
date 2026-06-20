@@ -1,8 +1,12 @@
 package com.example.screens
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.components.VideoItemCard
 import com.example.model.Video
+import com.example.utils.ImageUtils
 import com.example.viewmodel.VideoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +47,18 @@ fun ChannelScreen(
     val allVideos by viewModel.allVideos.collectAsState()
     val watchHistory by viewModel.watchHistory.collectAsState()
     val context = LocalContext.current
+
+    var selectedUriForCrop by remember { mutableStateOf<android.net.Uri?>(null) }
+    var showCropDialog by remember { mutableStateOf(false) }
+
+    val avatarLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            selectedUriForCrop = uri
+            showCropDialog = true
+        }
+    }
 
     // Navigation Tab state
     var selectedTab by remember { mutableStateOf(0) }
@@ -93,6 +110,21 @@ fun ChannelScreen(
     val channelVideos = allVideos.filter {
         it.channelId == channelId || 
         (channelId == "user_me" && it.channelId == currentUser?.id)
+    }
+
+    if (showCropDialog && selectedUriForCrop != null) {
+        ImageCropDialog(
+            imageUri = selectedUriForCrop!!,
+            onDismiss = { showCropDialog = false },
+            onCropped = { croppedPath ->
+                if (isEditingProfile) {
+                    editAvatar = croppedPath
+                } else {
+                    viewModel.configureChannel(channelDisplayName, channelBio, croppedPath, channelBannerUrl)
+                    Toast.makeText(context, "Logo updated and saved successfully!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -150,17 +182,56 @@ fun ChannelScreen(
                             verticalAlignment = Alignment.Bottom,
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            AsyncImage(
-                                model = channelAvatarUrl.ifEmpty { "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&auto=format&fit=crop" },
-                                contentDescription = "Channel Picture",
-                                contentScale = ContentScale.Crop,
+                            Box(
                                 modifier = Modifier
                                     .size(80.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.surface)
                                     .padding(3.dp)
                                     .clip(CircleShape)
-                            )
+                                    .clickable(enabled = channelId == "user_me" || channelId == currentUser?.id) {
+                                        avatarLauncher.launch("image/*")
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (channelAvatarUrl.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = channelAvatarUrl,
+                                        contentDescription = "Channel Picture",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = if (channelDisplayName.isNotEmpty()) channelDisplayName.take(1).uppercase() else "C",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+
+                                if (channelId == "user_me" || channelId == currentUser?.id) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.4f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CameraAlt,
+                                            contentDescription = "Edit Profile Picture",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
 
                             Column(modifier = Modifier.padding(bottom = 6.dp)) {
                                 Text(
@@ -453,3 +524,96 @@ fun ChannelScreen(
         }
     }
 }
+
+private @Composable
+fun ImageCropDialog(
+    imageUri: android.net.Uri,
+    onDismiss: () -> Unit,
+    onCropped: (String) -> Unit
+) {
+    val context = LocalContext.current
+    var zoomScale by remember { mutableStateOf(1f) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { 
+            Text(
+                "Crop Profile photo",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            ) 
+        },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Pinch/Zoom and center your brand's face logo inside the crop mark.",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Box(
+                    modifier = Modifier
+                        .size(160.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = "Crop preview",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(maxOf(0.dp, 15.dp * (zoomScale - 1f))) // inverse scale bounds simulation
+                    )
+                }
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ZoomOut, 
+                        contentDescription = "Zoom Out",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Slider(
+                        value = zoomScale,
+                        onValueChange = { zoomScale = it },
+                        valueRange = 1f..3f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ZoomIn, 
+                        contentDescription = "Zoom In",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val croppedPath = ImageUtils.cropAndSaveImage(context, imageUri, zoomScale)
+                    onCropped(croppedPath)
+                    onDismiss()
+                }
+            ) {
+                Text("Crop & Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+

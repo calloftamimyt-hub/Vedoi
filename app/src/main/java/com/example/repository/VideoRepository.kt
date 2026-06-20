@@ -97,7 +97,7 @@ class VideoRepository {
             email = email,
             username = username,
             displayName = username.replaceFirstChar { it.uppercase() },
-            avatarUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop",
+            avatarUrl = "",
             bio = "Welcome to ViewTube!",
             password = pass
         )
@@ -168,7 +168,7 @@ class VideoRepository {
             email = email,
             username = "tamim_ahmed",
             displayName = "Tamim Ahmed",
-            avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop",
+            avatarUrl = "",
             bio = "Official Channel of Tamim Ahmed."
         )
         
@@ -205,7 +205,7 @@ class VideoRepository {
         channelKeywords: String,
         channelCategory: String
     ) {
-        _currentUser.value = _currentUser.value?.copy(
+        val updated = _currentUser.value?.copy(
             displayName = displayName,
             username = username,
             avatarUrl = avatarUrl.ifEmpty { _currentUser.value?.avatarUrl ?: "" },
@@ -214,15 +214,43 @@ class VideoRepository {
             channelCategory = channelCategory,
             hasChannel = true
         )
+        _currentUser.value = updated
+        
+        updated?.let { user ->
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    SupabaseClient.api.upsertUserProfile(profile = user)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     fun updateChannel(name: String, bio: String, avatarUrl: String, bannerUrl: String) {
-        _currentUser.value = _currentUser.value?.copy(
+        val updated = _currentUser.value?.copy(
             displayName = name,
             bio = bio,
             avatarUrl = avatarUrl.ifEmpty { _currentUser.value?.avatarUrl ?: "" },
             bannerUrl = bannerUrl.ifEmpty { _currentUser.value?.bannerUrl ?: "" }
         )
+        _currentUser.value = updated
+        
+        updated?.let { user ->
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    SupabaseClient.api.upsertUserProfile(profile = user)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    fun updateLocalRegisteredList(user: UserProfile) {
+        _registeredUsers.value = _registeredUsers.value.map {
+            if (it.id == user.id) user else it
+        }
     }
 
     fun isSubscribed(channelId: String): Boolean {

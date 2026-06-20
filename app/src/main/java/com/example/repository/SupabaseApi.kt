@@ -25,6 +25,12 @@ interface SupabaseApi {
     @POST("user_profiles")
     suspend fun createUserProfile(@Body profile: UserProfile)
 
+    @POST("user_profiles")
+    suspend fun upsertUserProfile(
+        @Header("Prefer") prefer: String = "resolution=merge-duplicates",
+        @Body profile: UserProfile
+    )
+
     @GET("comments?select=*")
     suspend fun getComments(): List<Comment>
 
