@@ -1,5 +1,5 @@
 {
-  "name": "Remix: ViewTube",
+  "name": "ViewTube",
   "description": "A professional Android video sharing application with user authentication, custom channels, subscriptions, video uploads, search, comments, and private/public playlists.",
   "requestFramePermissions": [],
   "majorCapabilities": [

@@ -22,7 +22,7 @@ object SupabaseClient {
         val original = chain.request()
         val request = original.newBuilder()
             .header("apikey", API_KEY)
-            .header("Authorization", "Bearer \$API_KEY")
+            .header("Authorization", "Bearer $API_KEY")
             .header("Content-Type", "application/json")
             .method(original.method, original.body)
             .build()
