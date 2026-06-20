@@ -293,6 +293,10 @@ class VideoRepository {
         _currentUser.value = null
     }
 
+    fun setCurrentUserDirectly(user: UserProfile?) {
+        _currentUser.value = user
+    }
+
     // --- Channels ---
     fun updateUserChannelProfile(
         displayName: String,

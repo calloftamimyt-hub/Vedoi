@@ -23,8 +23,78 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
     private val _hasSeenOnboarding = MutableStateFlow(false)
     val hasSeenOnboarding = _hasSeenOnboarding.asStateFlow()
 
+    private var sharedPreferences: android.content.SharedPreferences? = null
+
+    fun initPersistence(context: android.content.Context) {
+        val prefs = context.applicationContext.getSharedPreferences("viewtube_prefs", android.content.Context.MODE_PRIVATE)
+        sharedPreferences = prefs
+        _hasSeenOnboarding.value = prefs.getBoolean("has_seen_onboarding", false)
+
+        val userId = prefs.getString("user_id", null)
+        val email = prefs.getString("user_email", null)
+        if (userId != null && email != null) {
+            val user = UserProfile(
+                id = userId,
+                email = email,
+                username = prefs.getString("user_username", "") ?: "",
+                displayName = prefs.getString("user_display_name", "") ?: "",
+                avatarUrl = prefs.getString("user_avatar_url", "") ?: "",
+                bannerUrl = prefs.getString("user_banner_url", "") ?: "",
+                subscribersCount = prefs.getInt("user_subscribers_count", 0),
+                bio = prefs.getString("user_bio", "Welcome to ViewTube!") ?: "Welcome to ViewTube!",
+                createdAt = prefs.getLong("user_created_at", System.currentTimeMillis()),
+                hasChannel = prefs.getBoolean("user_has_channel", false),
+                channelCategory = prefs.getString("user_channel_category", "") ?: "",
+                channelKeywords = prefs.getString("user_channel_keywords", "") ?: "",
+                password = prefs.getString("user_password", "") ?: ""
+            )
+            repository.setCurrentUserDirectly(user)
+            _hasSeenOnboarding.value = true
+            prefs.edit().putBoolean("has_seen_onboarding", true).apply()
+        }
+    }
+
     fun completeOnboarding() {
         _hasSeenOnboarding.value = true
+        sharedPreferences?.edit()?.putBoolean("has_seen_onboarding", true)?.apply()
+    }
+
+    private fun saveUserSessionToPrefs(user: UserProfile) {
+        sharedPreferences?.edit()?.apply {
+            putString("user_id", user.id)
+            putString("user_email", user.email)
+            putString("user_username", user.username)
+            putString("user_display_name", user.displayName)
+            putString("user_avatar_url", user.avatarUrl)
+            putString("user_banner_url", user.bannerUrl)
+            putInt("user_subscribers_count", user.subscribersCount)
+            putString("user_bio", user.bio)
+            putLong("user_created_at", user.createdAt)
+            putBoolean("user_has_channel", user.hasChannel)
+            putString("user_channel_category", user.channelCategory)
+            putString("user_channel_keywords", user.channelKeywords)
+            putString("user_password", user.password)
+            apply()
+        }
+    }
+
+    private fun clearUserSessionFromPrefs() {
+        sharedPreferences?.edit()?.apply {
+            remove("user_id")
+            remove("user_email")
+            remove("user_username")
+            remove("user_display_name")
+            remove("user_avatar_url")
+            remove("user_banner_url")
+            remove("user_subscribers_count")
+            remove("user_bio")
+            remove("user_created_at")
+            remove("user_has_channel")
+            remove("user_channel_category")
+            remove("user_channel_keywords")
+            remove("user_password")
+            apply()
+        }
     }
 
     // Screen States
@@ -182,7 +252,13 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
             _authError.value = null
             val result = repository.signUp(email, username, pass)
             _isAuthenticating.value = false
-            if (result.isFailure) {
+            if (result.isSuccess) {
+                result.getOrNull()?.let { user ->
+                    saveUserSessionToPrefs(user)
+                    _hasSeenOnboarding.value = true
+                    sharedPreferences?.edit()?.putBoolean("has_seen_onboarding", true)?.apply()
+                }
+            } else {
                 _authError.value = result.exceptionOrNull()?.message ?: "Sign up failed."
             }
         }
@@ -194,7 +270,13 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
             _authError.value = null
             val result = repository.login(email, pass)
             _isAuthenticating.value = false
-            if (result.isFailure) {
+            if (result.isSuccess) {
+                result.getOrNull()?.let { user ->
+                    saveUserSessionToPrefs(user)
+                    _hasSeenOnboarding.value = true
+                    sharedPreferences?.edit()?.putBoolean("has_seen_onboarding", true)?.apply()
+                }
+            } else {
                 _authError.value = result.exceptionOrNull()?.message ?: "Login failed."
             }
         }
@@ -206,7 +288,13 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
             _authError.value = null
             val result = repository.googleLogin()
             _isAuthenticating.value = false
-            if (result.isFailure) {
+            if (result.isSuccess) {
+                result.getOrNull()?.let { user ->
+                    saveUserSessionToPrefs(user)
+                    _hasSeenOnboarding.value = true
+                    sharedPreferences?.edit()?.putBoolean("has_seen_onboarding", true)?.apply()
+                }
+            } else {
                 _authError.value = "Google OAuth login cancelled or failed."
             }
         }
@@ -222,6 +310,7 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
         viewModelScope.launch {
             repository.logout()
             _activeVideo.value = null
+            clearUserSessionFromPrefs()
         }
     }
 
