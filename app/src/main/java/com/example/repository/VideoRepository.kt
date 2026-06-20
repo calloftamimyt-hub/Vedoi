@@ -42,16 +42,123 @@ class VideoRepository {
         setupSupabaseData()
     }
 
+    private fun getDefaultVideos(): List<Video> {
+        return listOf(
+            Video(
+                id = "vid_bunny",
+                title = "Big Buck Bunny - Animated Comedy Classic",
+                description = "The classic open-source animated comedy film. Big Buck Bunny tells the story of a giant rabbit with a heart of gold, whose journey is interrupted by three bullying rodents.",
+                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                thumbnailUrl = "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&auto=format&fit=crop",
+                duration = "09:56",
+                viewsCount = 14205,
+                likesCount = 890,
+                dislikesCount = 12,
+                commentsCount = 2,
+                category = "Tech",
+                channelId = "blender_foundation",
+                channelName = "Blender Foundation",
+                channelAvatarUrl = "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&auto=format&fit=crop"
+            ),
+            Video(
+                id = "vid_sintel",
+                title = "Sintel - Cinematic Fantasy Adventure Trailer",
+                description = "An epic fantasy story of a girl named Sintel searching for her beloved baby dragon companion. Beautifully rendered animation movie by the Blender community.",
+                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+                thumbnailUrl = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&auto=format&fit=crop",
+                duration = "04:52",
+                viewsCount = 9481,
+                likesCount = 650,
+                dislikesCount = 5,
+                commentsCount = 1,
+                category = "Music",
+                channelId = "durian_project",
+                channelName = "Durian Project Team",
+                channelAvatarUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop"
+            ),
+            Video(
+                id = "vid_steel",
+                title = "Tears of Steel - Sci-Fi VFX Showcase",
+                description = "Explore a dystopian sci-fi world set in Seattle, showcasing breathtaking graphics and CGI effects. Follow a group of explorers reconstructing memories of the future.",
+                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+                thumbnailUrl = "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=800&auto=format&fit=crop",
+                duration = "12:14",
+                viewsCount = 21085,
+                likesCount = 1320,
+                dislikesCount = 18,
+                commentsCount = 0,
+                category = "Coding",
+                channelId = "mango_vfx",
+                channelName = "Mango VFX Studio",
+                channelAvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop"
+            ),
+            Video(
+                id = "vid_elephant",
+                title = "Elephant's Dream - Surreal Experimental Art",
+                description = "The first open-source 3D animated masterwork. Enter a mind-bending dreamscape of majestic gears and strange, delightful devices.",
+                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                thumbnailUrl = "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop",
+                duration = "10:53",
+                viewsCount = 5402,
+                likesCount = 310,
+                dislikesCount = 7,
+                commentsCount = 1,
+                category = "Tech",
+                channelId = "orange_open",
+                channelName = "Orange Open Project",
+                channelAvatarUrl = "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=150&auto=format&fit=crop"
+            ),
+            Video(
+                id = "vid_short_blazes",
+                title = "Vibrant Forest Sunset Hike!",
+                description = "Catching the golden hour in the dense mountain ranges. #Shorts #Hike #Sunset",
+                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                thumbnailUrl = "https://images.unsplash.com/photo-1518173946687-a4c8a3833923?w=800&auto=format&fit=crop",
+                duration = "00:15",
+                viewsCount = 98120,
+                likesCount = 5740,
+                dislikesCount = 40,
+                commentsCount = 10,
+                category = "Shorts",
+                channelId = "outdoor_explorer",
+                channelName = "Outdoor Explorer",
+                channelAvatarUrl = "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&auto=format&fit=crop",
+                isShort = true
+            ),
+            Video(
+                id = "vid_short_escapes",
+                title = "Tropical Islands Dream Beach Escape 🏝️",
+                description = "Enjoying crystal clear turquoise waters and private sandy beaches. #Shorts #Travel #Beach #Rest",
+                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+                thumbnailUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop",
+                duration = "00:15",
+                viewsCount = 125190,
+                likesCount = 8912,
+                dislikesCount = 35,
+                commentsCount = 24,
+                category = "Shorts",
+                channelId = "travel_diaries",
+                channelName = "Travel Diaries",
+                channelAvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop",
+                isShort = true
+            )
+        )
+    }
+
     private fun setupSupabaseData() {
         GlobalScope.launch {
             try {
                 // Fetch from Supabase via Retrofit
                 val networkVideos = SupabaseClient.api.getVideos()
-                _videos.value = networkVideos
+                if (networkVideos.isEmpty()) {
+                    _videos.value = getDefaultVideos()
+                } else {
+                    _videos.value = networkVideos
+                }
             } catch (e: Exception) {
-                // If tables do not exist or error, start with empty list
+                // If tables do not exist or error, start with beautiful curated list
                 e.printStackTrace()
-                _videos.value = emptyList()
+                _videos.value = getDefaultVideos()
             }
 
             try {
@@ -80,10 +187,12 @@ class VideoRepository {
             username = username,
             displayName = username.replaceFirstChar { it.uppercase() },
             avatarUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop",
-            bio = "Welcome to ViewTube!"
+            bio = "Welcome to ViewTube!",
+            password = pass
         )
         try {
             SupabaseClient.api.createUserProfile(newUser)
+            _registeredUsers.value = _registeredUsers.value + newUser
             _currentUser.value = newUser
             return Result.success(newUser)
         } catch (e: Exception) {
@@ -104,6 +213,9 @@ class VideoRepository {
             val users = SupabaseClient.api.getUserProfiles()
             val matched = users.find { it.email == email }
             if (matched != null) {
+                if (matched.password.isNotEmpty() && matched.password != pass) {
+                    return Result.failure(Exception("Incorrect password for this account. Please try again."))
+                }
                 _currentUser.value = matched
                 return Result.success(matched)
             }
@@ -114,6 +226,9 @@ class VideoRepository {
             // Fallback to in-memory locally
             val matched = _registeredUsers.value.find { it.email == email }
             if (matched != null) {
+                if (matched.password.isNotEmpty() && matched.password != pass) {
+                    return Result.failure(Exception("Incorrect password for this account. Please try again."))
+                }
                 _currentUser.value = matched
                 return Result.success(matched)
             }

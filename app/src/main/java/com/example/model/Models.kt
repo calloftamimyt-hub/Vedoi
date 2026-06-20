@@ -14,7 +14,8 @@ data class UserProfile(
     val createdAt: Long = System.currentTimeMillis(),
     val hasChannel: Boolean = false,
     val channelCategory: String = "",
-    val channelKeywords: String = ""
+    val channelKeywords: String = "",
+    val password: String = ""
 )
 
 data class Video(
