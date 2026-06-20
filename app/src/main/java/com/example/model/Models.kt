@@ -12,7 +12,9 @@ data class UserProfile(
     val subscribersCount: Int = 0,
     val bio: String = "No bio yet.",
     val createdAt: Long = System.currentTimeMillis(),
-    val hasChannel: Boolean = false
+    val hasChannel: Boolean = false,
+    val channelCategory: String = "",
+    val channelKeywords: String = ""
 )
 
 data class Video(
@@ -78,7 +80,7 @@ data class NotificationItem(
 )
 
 enum class NotificationType {
-    SUBSCRIBER, COMMENT, LIKE, SYSTEM
+    SUBSCRIBER, COMMENT, LIKE, SYSTEM, NEW_VIDEO
 }
 
 data class SearchHistoryItem(

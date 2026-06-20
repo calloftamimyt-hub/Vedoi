@@ -97,6 +97,7 @@ fun NotificationScreen(
                                         NotificationType.COMMENT -> MaterialTheme.colorScheme.surfaceVariant
                                         NotificationType.LIKE -> MaterialTheme.colorScheme.errorContainer
                                         NotificationType.SYSTEM -> MaterialTheme.colorScheme.primaryContainer
+                                        NotificationType.NEW_VIDEO -> MaterialTheme.colorScheme.tertiaryContainer
                                     }
                                 ),
                             contentAlignment = Alignment.Center
@@ -107,6 +108,7 @@ fun NotificationScreen(
                                     NotificationType.COMMENT -> Icons.Default.Comment
                                     NotificationType.LIKE -> Icons.Default.Favorite
                                     NotificationType.SYSTEM -> Icons.Default.Notifications
+                                    NotificationType.NEW_VIDEO -> Icons.Default.VideoLibrary
                                 },
                                 contentDescription = null,
                                 tint = when (item.type) {
@@ -114,6 +116,7 @@ fun NotificationScreen(
                                     NotificationType.COMMENT -> MaterialTheme.colorScheme.onSurfaceVariant
                                     NotificationType.LIKE -> MaterialTheme.colorScheme.onErrorContainer
                                     NotificationType.SYSTEM -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    NotificationType.NEW_VIDEO -> MaterialTheme.colorScheme.onTertiaryContainer
                                 },
                                 modifier = Modifier.size(18.dp)
                             )

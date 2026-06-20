@@ -39,14 +39,16 @@ fun LibraryScreen(
     onNavigateToChannel: (String) -> Unit,
     onNavigateToCreateChannel: () -> Unit,
     onVideoClick: (Video) -> Unit,
+    navController: androidx.navigation.NavController? = null,
     modifier: Modifier = Modifier
 ) {
     val watchHistory by viewModel.watchHistory.collectAsState()
     val likedVideos by viewModel.likedVideos.collectAsState()
     val downloadedVideos by viewModel.downloadedVideos.collectAsState()
-    val playlists by viewModel.playlists.collectAsState()
+    val savedVideos by viewModel.savedVideos.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val subscribedChannels by viewModel.subscribedChannels.collectAsState()
+    val uploadTasks by viewModel.uploadTasks.collectAsState()
 
     val context = LocalContext.current
 
@@ -108,55 +110,105 @@ fun LibraryScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
                         )
-                        Text(
-                            text = currentUser?.email ?: "",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            text = "View channel \u203A",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                        if (currentUser?.hasChannel == true) {
+                            Text(
+                                text = "@" + (currentUser?.username ?: ""),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "View channel \u203A",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        } else {
+                            Text(
+                                text = currentUser?.email ?: "",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "No channel \u203A",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
             }
 
-            // 0. Subscriptions horizontal scroll
-            if (subscribedChannels.isNotEmpty()) {
+            if (uploadTasks.isNotEmpty()) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 16.dp)) {
                         Text(
-                            text = "Subscriptions",
+                            text = "Your Videos Uploading",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(subscribedChannels) { channel ->
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.clickable { onNavigateToChannel(channel.first) }.width(72.dp)
-                                ) {
-                                    AsyncImage(
-                                        model = channel.third.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" },
-                                        contentDescription = channel.second,
-                                        modifier = Modifier
-                                            .size(56.dp)
-                                            .clip(CircleShape),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = channel.second,
-                                        fontSize = 11.sp,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
+                        uploadTasks.forEach { task ->
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (task.isFailed)
+                                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                                    else
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = task.title,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp,
+                                            maxLines = 1,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (task.isCompleted) {
+                                            IconButton(onClick = { viewModel.dismissCompletedUpload(task.id) }) {
+                                                Icon(Icons.Default.CheckCircle, contentDescription = "Dismiss task", tint = Color.Green)
+                                            }
+                                        } else if (task.isFailed) {
+                                            IconButton(onClick = { viewModel.retryUploadTask(task.id) }) {
+                                                Icon(Icons.Default.Refresh, contentDescription = "Retry upload task", tint = MaterialTheme.colorScheme.error)
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    if (!task.isCompleted && !task.isFailed) {
+                                        LinearProgressIndicator(
+                                            progress = task.progress,
+                                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Uploading... ${(task.progress * 100).toInt()}% to S3 Cloudflare",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    } else if (task.isFailed) {
+                                        Text(
+                                            text = "Upload Interrupted! Cloudflare S3 bucket connection failed. Click retry.",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.error,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "Completed! Video posted live to channel.",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -168,14 +220,32 @@ fun LibraryScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.History, contentDescription = "History Icon", modifier = Modifier.size(24.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.History, contentDescription = "History Icon", modifier = Modifier.size(24.dp))
+                            Text(
+                                text = "History",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
                         Text(
-                            text = "History",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = "View all",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            modifier = Modifier.clickable {
+                                // In a real app we would navigate to HistoryScreen
+                                // Assuming we have added a route for history
+                                navController?.navigate("history")
+                            }
                         )
                     }
 
@@ -250,197 +320,58 @@ fun LibraryScreen(
                     }
                 }
             }
+            
+            item { Divider(modifier = Modifier.padding(vertical = 8.dp)) }
 
-            // 2. Playlists Row plus "Create Playlist" Button trigger
+            // Vertical list for options
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Liked Videos Menu Item
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { /* Navigate to Liked Videos */ }
+                            .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Playlists",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        TextButton(
-                            onClick = { showCreatePlaylistDialog = true },
-                            modifier = Modifier.testTag("create_playlist_button")
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Text("New Playlist", fontWeight = FontWeight.Bold)
-                            }
+                        Icon(imageVector = Icons.Default.ThumbUp, contentDescription = "Liked videos", modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(text = "Liked videos", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            Text(text = "${likedVideos.size} videos", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
-                    if (playlists.isEmpty()) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Create private or public playlists and organize matching tracks nicely.",
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            playlists.forEach { pl ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                                        .clickable { onNavigateToPlaylistDetail(pl.id) }
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = if (pl.isPublic) Icons.Default.Public else Icons.Default.Lock,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-
-                                        Column {
-                                            Text(text = pl.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                            Text(text = "${pl.videoIds.size} videos • ${if (pl.isPublic) "Public" else "Private"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-
-                                    Icon(Icons.Default.ChevronRight, contentDescription = null)
-                                }
-                            }
+                    // Shared Videos Menu Item
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { /* Navigate to Shared Videos */ }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Share, contentDescription = "Shared videos", modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(text = "Shared videos", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            val sharedCount by viewModel.sharedVideos.collectAsState()
+                            Text(text = "${sharedCount.size} shared videos", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                }
-            }
 
-            // 3. Liked Videos summary list
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Liked Videos (${likedVideos.size})",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    if (likedVideos.isEmpty()) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Videos you 'thumb up' will stack here.",
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(likedVideos) { video ->
-                                Column(
-                                    modifier = Modifier
-                                        .width(150.dp)
-                                        .clickable { onVideoClick(video) }
-                                ) {
-                                    AsyncImage(
-                                        model = video.thumbnailUrl,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .width(150.dp)
-                                            .height(85.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = video.title,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 4. Downloads offline logs list
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Downloads (${downloadedVideos.size} offline)",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    if (downloadedVideos.isEmpty()) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Keep videos indexed off-grid by hitting download in player.",
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(downloadedVideos) { video ->
-                                Column(
-                                    modifier = Modifier
-                                        .width(150.dp)
-                                        .clickable { onVideoClick(video) }
-                                ) {
-                                    AsyncImage(
-                                        model = video.thumbnailUrl,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .width(150.dp)
-                                            .height(85.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = video.title,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
+                    // Downloads Menu Item
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { /* Navigate to Downloads */ }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Download, contentDescription = "Downloads", modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(text = "Downloads", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            Text(text = "${downloadedVideos.size} videos", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

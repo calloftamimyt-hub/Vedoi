@@ -42,8 +42,10 @@ fun AuthScreen(
     var activeMode by remember { mutableStateOf(0) }
 
     var email by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
@@ -153,17 +155,29 @@ fun AuthScreen(
 
                     // Fields
                     if (activeMode == 1) {
-                        OutlinedTextField(
-                            value = username,
-                            onValueChange = { username = it },
-                            label = { Text("Username") },
-                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("username_input")
-                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = firstName,
+                                onValueChange = { firstName = it },
+                                label = { Text("First Name") },
+                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("firstname_input")
+                            )
+                            OutlinedTextField(
+                                value = lastName,
+                                onValueChange = { lastName = it },
+                                label = { Text("Last Name") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("lastname_input")
+                            )
+                        }
                     }
 
                     OutlinedTextField(
@@ -201,6 +215,21 @@ fun AuthScreen(
                         )
                     }
 
+                    if (activeMode == 1) {
+                        OutlinedTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it },
+                            label = { Text("Confirm Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("confirm_password_input")
+                        )
+                    }
+
                     // Forgot password link
                     if (activeMode == 0) {
                         TextButton(
@@ -218,7 +247,11 @@ fun AuthScreen(
                             if (activeMode == 0) {
                                 viewModel.performLogin(email, password)
                             } else if (activeMode == 1) {
-                                viewModel.performSignUp(email, username, password)
+                                if (password != confirmPassword) {
+                                    feedbackMessage = "Passwords do not match."
+                                } else {
+                                    viewModel.performSignUp(email, "$firstName $lastName".trim(), password)
+                                }
                             } else {
                                 viewModel.performForgotPassword(email)
                                 feedbackMessage = "Recovery credentials link dispatched successfully!"
@@ -243,6 +276,28 @@ fun AuthScreen(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+                    }
+
+                    if (activeMode != 2) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                            HorizontalDivider(modifier = Modifier.weight(1f))
+                            Text(" or ", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp))
+                            HorizontalDivider(modifier = Modifier.weight(1f))
+                        }
+
+                        OutlinedButton(
+                            onClick = { 
+                                viewModel.performGoogleSignIn() 
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
+                            Icon(painter = painterResource(id = android.R.drawable.ic_dialog_email), contentDescription = "Google", modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Continue with Google", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
 
@@ -273,50 +328,15 @@ fun AuthScreen(
                         ) {
                             Text(
                                 text = when (activeMode) {
-                                    0 -> "Create Channel"
-                                    1 -> "Sign In"
-                                    else -> "Back to Sign In"
+                                    0 -> "Sign Up"
+                                    1 -> "Login"
+                                    else -> "Back to Login"
                                 },
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Google OAuth visual sign in button
-            OutlinedButton(
-                onClick = { viewModel.performGoogleSignIn() },
-                enabled = !isAuthenticating,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .testTag("google_login_button"),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                )
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Custom representation of google icon
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = "Google Logo",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Continue with Google",
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 15.sp
-                    )
                 }
             }
         }

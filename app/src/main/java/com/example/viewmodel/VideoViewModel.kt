@@ -20,6 +20,13 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
     private val _isAuthenticating = MutableStateFlow(false)
     val isAuthenticating = _isAuthenticating.asStateFlow()
 
+    private val _hasSeenOnboarding = MutableStateFlow(false)
+    val hasSeenOnboarding = _hasSeenOnboarding.asStateFlow()
+
+    fun completeOnboarding() {
+        _hasSeenOnboarding.value = true
+    }
+
     // Screen States
     private val _selectedCategory = MutableStateFlow("All")
     val selectedCategory = _selectedCategory.asStateFlow()
@@ -79,6 +86,12 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
     private val _downloadedVideos = MutableStateFlow<List<Video>>(emptyList())
     val downloadedVideos = _downloadedVideos.asStateFlow()
 
+    private val _savedVideos = MutableStateFlow<List<Video>>(emptyList())
+    val savedVideos = _savedVideos.asStateFlow()
+
+    private val _sharedVideos = MutableStateFlow<List<Video>>(emptyList())
+    val sharedVideos = _sharedVideos.asStateFlow()
+
     private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
     val notifications = _notifications.asStateFlow()
 
@@ -125,6 +138,16 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
         viewModelScope.launch {
             repository.getDownloadedVideos().collect {
                 _downloadedVideos.value = it
+            }
+        }
+        viewModelScope.launch {
+            repository.getSavedVideos().collect {
+                _savedVideos.value = it
+            }
+        }
+        viewModelScope.launch {
+            repository.getSharedVideos().collect {
+                _sharedVideos.value = it
             }
         }
 
@@ -202,8 +225,15 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
         }
     }
 
-    fun createChannel(displayName: String, username: String) {
-        repository.updateUserChannelProfile(displayName, username)
+    fun createChannel(
+        displayName: String,
+        username: String,
+        avatarUrl: String,
+        bio: String,
+        channelKeywords: String,
+        channelCategory: String
+    ) {
+        repository.updateUserChannelProfile(displayName, username, avatarUrl, bio, channelKeywords, channelCategory)
     }
 
     // --- Media Controls & UI States ---
@@ -240,6 +270,10 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
         }
     }
 
+    fun clearActiveVideo() {
+        _activeVideo.value = null
+    }
+
     fun changePlaybackSpeed(speed: String) {
         _playbackSpeed.value = speed
     }
@@ -263,13 +297,17 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
     // --- Likes/Dislikes & Subscribe Core ---
     fun toggleLikeVideo(videoId: String) {
         repository.toggleLike(videoId)
-        // Refresh active video state
-        _activeVideo.value = repository.getVideoById(videoId)
+        // Refresh active video state only if it matches
+        if (_activeVideo.value?.id == videoId) {
+            _activeVideo.value = repository.getVideoById(videoId)
+        }
     }
 
     fun toggleDislikeVideo(videoId: String) {
         repository.toggleDislike(videoId)
-        _activeVideo.value = repository.getVideoById(videoId)
+        if (_activeVideo.value?.id == videoId) {
+            _activeVideo.value = repository.getVideoById(videoId)
+        }
     }
 
     fun isVideoLiked(videoId: String): Boolean = repository.isLiked(videoId)
@@ -289,6 +327,8 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
             }
         }
     }
+
+    fun getComments(videoId: String) = repository.getCommentsForVideo(videoId)
 
     fun submitComment(videoId: String, content: String) {
         if (content.trim().isEmpty()) return
@@ -354,8 +394,8 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
         }
     }
 
-    fun requestVideoUpload(title: String, description: String, category: String, duration: String) {
-        repository.uploadVideo(title, description, category, duration)
+    fun requestVideoUpload(title: String, description: String, category: String, duration: String, context: android.content.Context) {
+        repository.uploadVideo(title, description, category, duration, context)
     }
 
     fun retryUploadTask(taskId: String) {
@@ -383,6 +423,17 @@ class VideoViewModel(private val repository: VideoRepository = VideoRepository()
 
     fun removeVideoFromPlaylist(playlistId: String, videoId: String) {
         repository.removeVideoFromPlaylist(playlistId, videoId)
+    }
+
+    // --- Saved Videos ---
+    fun saveVideo(videoId: String) {
+        repository.toggleSaveVideo(videoId)
+    }
+
+    fun isSaved(videoId: String): Boolean = repository.isSaved(videoId)
+
+    fun shareVideoToProfile(videoId: String) {
+        repository.shareVideoToProfile(videoId)
     }
 
     // --- Save to Downloads ---

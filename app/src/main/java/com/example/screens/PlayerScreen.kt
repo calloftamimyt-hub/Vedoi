@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.components.formatNumber
 import com.example.components.formatRelativeTime
+import com.example.components.CommentSection
 import com.example.model.Comment
 import com.example.model.Video
 import com.example.viewmodel.VideoViewModel
@@ -118,25 +119,33 @@ fun PlayerScreen(
         return
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = "Now Playing", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Go back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+    var showControls by remember { mutableStateOf(false) }
+    var showCommentSheet by remember { mutableStateOf(false) }
+
+    if (isPipMode) {
+        // Just the video frame, no scaffold, no controls
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = "Video playback frame",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
-        },
+        }
+        return
+    }
+
+    Scaffold(
         modifier = modifier
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
         ) {
             // 1. Interactive Video Screen Area
             Box(
@@ -144,6 +153,7 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
                     .background(Color.Black)
+                    .clickable { showControls = !showControls }
             ) {
                 AsyncImage(
                     model = video.thumbnailUrl,
@@ -152,83 +162,97 @@ fun PlayerScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Mock Player visual overlays
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .padding(16.dp)
-                ) {
-                    // Center active Play/Pause simulated triggers
-                    Row(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalArrangement = Arrangement.spacedBy(28.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // Player visual overlays
+                androidx.compose.animation.AnimatedVisibility(visible = showControls, enter = fadeIn(), exit = fadeOut()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .padding(horizontal = 8.dp, vertical = 24.dp)
                     ) {
-                        IconButton(onClick = {} /* previous */) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = "Skip back", tint = Color.White, modifier = Modifier.size(32.dp))
-                        }
+                        // Top-left Back button
                         IconButton(
-                            onClick = { Toast.makeText(context, "Playback Paused", Toast.LENGTH_SHORT).show() }
+                            onClick = onNavigateBack,
+                            modifier = Modifier.align(Alignment.TopStart)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = "Play/Pause", tint = Color.White, modifier = Modifier.size(54.dp))
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Go back", tint = Color.White)
                         }
-                        IconButton(onClick = { viewModel.playNextVideo() }) {
-                            Icon(Icons.Default.SkipNext, contentDescription = "Skip forward", tint = Color.White, modifier = Modifier.size(32.dp))
-                        }
-                    }
 
-                    // Bottom: Scrubbing Slider bar
-                    Column(
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    ) {
+                        // Center active Play/Pause simulated triggers
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalArrangement = Arrangement.spacedBy(28.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "01:24 / ${video.duration}", color = Color.White, fontSize = 12.sp)
-
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            IconButton(onClick = {} /* previous */) {
+                                Icon(Icons.Default.SkipPrevious, contentDescription = "Skip back", tint = Color.White, modifier = Modifier.size(32.dp))
+                            }
+                            IconButton(
+                                onClick = { Toast.makeText(context, "Playback Paused", Toast.LENGTH_SHORT).show() }
                             ) {
-                                // Pin-to-Pin PiP Trigger
-                                Icon(
-                                    imageVector = Icons.Default.PictureInPicture,
-                                    contentDescription = "PiP Mode",
-                                    tint = Color.White,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clickable {
-                                            viewModel.togglePipMode(true)
-                                            Toast.makeText(context, "Picture in Picture Enabled", Toast.LENGTH_SHORT).show()
-                                        }
-                                )
-
-                                // FullScreen
-                                Icon(
-                                    imageVector = Icons.Default.Fullscreen,
-                                    contentDescription = "Full Screen",
-                                    tint = Color.White,
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .clickable { viewModel.toggleFullScreen(true) }
-                                )
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Play/Pause", tint = Color.White, modifier = Modifier.size(54.dp))
+                            }
+                            IconButton(onClick = { viewModel.playNextVideo() }) {
+                                Icon(Icons.Default.SkipNext, contentDescription = "Skip forward", tint = Color.White, modifier = Modifier.size(32.dp))
                             }
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = 0.15f,
-                            color = Color.Red,
-                            trackColor = Color.White.copy(alpha = 0.3f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                        )
+
+                        // Bottom: Scrubbing Slider bar
+                        Column(
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "01:24 / ${video.duration}", color = Color.White, fontSize = 12.sp)
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PictureInPicture,
+                                        contentDescription = "PiP Mode",
+                                        tint = Color.White,
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clickable {
+                                                viewModel.togglePipMode(true) // Will be handled by system PiP if enabled locally
+                                            }
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Fullscreen,
+                                        contentDescription = "Full Screen",
+                                        tint = Color.White,
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .clickable { viewModel.toggleFullScreen(true) }
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LinearProgressIndicator(
+                                progress = 0.15f,
+                                color = Color.Red,
+                                trackColor = Color.White.copy(alpha = 0.3f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                            )
+                        }
                     }
                 }
             }
+
+            // Scrollable Content Below Video
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
 
             // 2. Video Details (Title, Statistics, Description Expansion)
             Column(modifier = Modifier.padding(16.dp)) {
@@ -508,7 +532,7 @@ fun PlayerScreen(
                             shape = RoundedCornerShape(24.dp),
                             modifier = Modifier.testTag("subscribe_button")
                         ) {
-                            Text(text = if (isSubscribed) "Subscribed" else "Subscribe", fontWeight = FontWeight.Bold)
+                            Text(text = if (isSubscribed) "Following" else "Follow", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -517,228 +541,66 @@ fun PlayerScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 5. Unified Comments Column Section (Add Comment, Display Replies, Likes, and Trash Can Deletes)
-                Text(
-                    text = "Comments (${comments.size})",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Post New Comment Input Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // 5. Comments Preview
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showCommentSheet = true }
                 ) {
-                    AsyncImage(
-                        model = currentUser?.avatarUrl?.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" }
-                            ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop",
-                        contentDescription = "My avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                    )
-
-                    OutlinedTextField(
-                        value = activeCommentText,
-                        onValueChange = { activeCommentText = it },
-                        placeholder = { Text("Add a public comment...", fontSize = 13.sp) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("new_comment_input"),
-                        shape = RoundedCornerShape(20.dp),
-                        trailingIcon = {
-                            if (activeCommentText.isNotEmpty()) {
-                                IconButton(
-                                    onClick = {
-                                        viewModel.submitComment(video.id, activeCommentText)
-                                        activeCommentText = ""
-                                    },
-                                    modifier = Modifier.testTag("submit_comment_button")
-                                ) {
-                                    Icon(Icons.Default.Send, contentDescription = "Publish", tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Comments ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("${comments.size}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // List of interactive Active Comments
-                if (comments.isEmpty()) {
-                    Text(
-                        text = "Be the first to comment on this video!",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
-                } else {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        comments.forEach { comment ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    AsyncImage(
-                                        model = comment.userAvatarUrl.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" },
-                                        contentDescription = "User comment avatar",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                    )
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Text(
-                                                text = comment.userName,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = formatRelativeTime(comment.createdAt),
-                                                fontSize = 10.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        Text(
-                                            text = comment.content,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-
-                                        Spacer(modifier = Modifier.height(6.dp))
-
-                                        // Comment Action row: Likes count, Reply Button, Delete Trashcan
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.clickable { viewModel.submitLikeComment(video.id, comment.id) }
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (comment.isLikedByMe) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
-                                                    contentDescription = "Thumb up comment",
-                                                    tint = if (comment.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = formatNumber(comment.likesCount),
-                                                    fontSize = 11.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-
-                                            Text(
-                                                text = "Reply",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.clickable {
-                                                    replyingCommentId = if (replyingCommentId == comment.id) null else comment.id
-                                                    replyText = ""
-                                                }
-                                            )
-
-                                            // Delete Trash indicator if owned by user
-                                            if (comment.userId == currentUser?.id) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Delete,
-                                                    contentDescription = "Delete comment",
-                                                    tint = MaterialTheme.colorScheme.error,
-                                                    modifier = Modifier
-                                                        .size(16.dp)
-                                                        .clickable {
-                                                            viewModel.removeComment(video.id, comment.id)
-                                                            Toast.makeText(context, "Comment deleted", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                )
-                                            }
-                                        }
-
-                                        // Insert replies field inline
-                                        AnimatedVisibility(visible = replyingCommentId == comment.id) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(top = 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                OutlinedTextField(
-                                                    value = replyText,
-                                                    onValueChange = { replyText = it },
-                                                    placeholder = { Text("Reply to comment...", fontSize = 12.sp) },
-                                                    modifier = Modifier.weight(1f),
-                                                    shape = RoundedCornerShape(16.dp),
-                                                    singleLine = true
-                                                )
-                                                IconButton(
-                                                    onClick = {
-                                                        viewModel.submitReplyComment(video.id, comment.id, replyText)
-                                                        replyingCommentId = null
-                                                        replyText = ""
-                                                    }
-                                                ) {
-                                                    Icon(Icons.Default.Send, contentDescription = "Send reply", tint = MaterialTheme.colorScheme.primary)
-                                                }
-                                            }
-                                        }
-
-                                        // Render Replies
-                                        if (comment.replies.isNotEmpty()) {
-                                            Column(modifier = Modifier.padding(top = 8.dp, start = 8.dp)) {
-                                                comment.replies.forEach { r ->
-                                                    Row(
-                                                        modifier = Modifier.padding(vertical = 4.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                    ) {
-                                                        AsyncImage(
-                                                            model = r.userAvatarUrl.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" },
-                                                            contentDescription = null,
-                                                            modifier = Modifier
-                                                                .size(24.dp)
-                                                                .clip(CircleShape)
-                                                        )
-                                                        Column {
-                                                            Text(
-                                                                text = "${r.userName} • ${formatRelativeTime(r.createdAt)}",
-                                                                fontWeight = FontWeight.Bold,
-                                                                fontSize = 11.sp,
-                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                            )
-                                                            Text(text = r.content, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                        if (comments.isNotEmpty()) {
+                            val first = comments.first()
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                                AsyncImage(
+                                    model = first.userAvatarUrl.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp).clip(CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = first.content,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    fontSize = 13.sp
+                                )
                             }
+                        } else {
+                            Text("No comments yet. Write one!", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
                 }
+            }
+        }
+    }
+
+    if (showCommentSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showCommentSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxHeight(0.75f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                CommentSection(
+                    comments = comments,
+                    currentUser = currentUser,
+                    onPostComment = { text -> viewModel.submitComment(video.id, text) },
+                    onReplyComment = { commentId, text -> viewModel.submitReplyComment(video.id, commentId, text) },
+                    onLikeComment = { commentId -> viewModel.submitLikeComment(video.id, commentId) },
+                    onDeleteComment = { commentId -> 
+                        viewModel.removeComment(video.id, commentId)
+                        Toast.makeText(context, "Comment deleted", Toast.LENGTH_SHORT).show()
+                    }
+                )
             }
         }
     }
@@ -874,4 +736,5 @@ fun PlayerScreen(
             }
         )
     }
+}
 }

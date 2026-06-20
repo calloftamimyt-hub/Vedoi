@@ -213,7 +213,7 @@ fun ChannelScreen(
                                         contentColor = if (subbed) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
                                     )
                                 ) {
-                                    Text(text = if (subbed) "Subscribed" else "Subscribe", fontWeight = FontWeight.Bold)
+                                    Text(text = if (subbed) "Following" else "Follow", fontWeight = FontWeight.Bold)
                                 }
 
                                 if (subbed) {

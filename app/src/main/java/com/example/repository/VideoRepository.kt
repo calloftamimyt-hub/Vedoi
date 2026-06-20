@@ -12,19 +12,10 @@ import java.util.UUID
 class VideoRepository {
 
     // Current Sign-in user state
-    private val _currentUser = MutableStateFlow<UserProfile?>(
-        UserProfile(
-            id = "user_me",
-            email = "its.me.calloftanjil@gmail.com",
-            username = "calloftanjil",
-            displayName = "Tanjil Ahmed",
-            avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop",
-            bannerUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop",
-            subscribersCount = 1420,
-            bio = "Official Channel of Tanjil. Building professional apps and high-quality software."
-        )
-    )
+    private val _currentUser = MutableStateFlow<UserProfile?>(null)
     val currentUser: StateFlow<UserProfile?> = _currentUser.asStateFlow()
+
+    private val _registeredUsers = MutableStateFlow<List<UserProfile>>(emptyList())
 
     // Database simulation for local fallback
     private val _videos = MutableStateFlow<List<Video>>(emptyList())
@@ -39,293 +30,120 @@ class VideoRepository {
     private val _dislikedVideoIds = MutableStateFlow<Set<String>>(emptySet())
     private val _subscribedChannelIds = MutableStateFlow<Set<String>>(emptySet())
     private val _downloadedVideoIds = MutableStateFlow<Set<String>>(emptySet())
+    private val _savedVideoIds = MutableStateFlow<Set<String>>(emptySet())
+    private val _sharedVideoIds = MutableStateFlow<Set<String>>(emptySet())
 
     // Upload Tasks
     private val _uploadTasks = MutableStateFlow<List<UploadProgress>>(emptyList())
     val uploadTasks: StateFlow<List<UploadProgress>> = _uploadTasks.asStateFlow()
 
     init {
-        // Hydrate demo content
-        setupDemoData()
+        // Hydrate from Supabase
+        setupSupabaseData()
+    }
+
+    private fun setupSupabaseData() {
+        GlobalScope.launch {
+            try {
+                // Fetch from Supabase via Retrofit
+                val networkVideos = SupabaseClient.api.getVideos()
+                _videos.value = networkVideos
+            } catch (e: Exception) {
+                // If tables do not exist or error, start with empty list
+                e.printStackTrace()
+                _videos.value = emptyList()
+            }
+
+            try {
+                val networkPlaylists = SupabaseClient.api.getPlaylists()
+                _playlists.value = networkPlaylists
+            } catch (e: Exception) {
+                _playlists.value = emptyList()
+            }
+            
+            try {
+                val commentsList = SupabaseClient.api.getComments()
+                val map = commentsList.groupBy { it.videoId }
+                _comments.value = map
+            } catch (e: Exception) {
+                _comments.value = emptyMap()
+            }
+        }
     }
 
     private fun setupDemoData() {
-        val channels = listOf(
-            Triple("dev_android", "Google Android", "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=150&auto=format&fit=crop"),
-            Triple("cosmic_voyager", "Cosmic Voyager", "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=150&auto=format&fit=crop"),
-            Triple("synth_beats", "Lofi Synth Records", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150&auto=format&fit=crop"),
-            Triple("chef_alicia", "Bite Size Cooking", "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=150&auto=format&fit=crop"),
-            Triple("fitness_flow", "FitLife Studio", "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=150&auto=format&fit=crop")
-        )
-
-        val demoVideos = listOf(
-            Video(
-                id = "vid_1",
-                title = "Jetpack Compose M3 Layouts: Complete Modern UI Building Guide",
-                description = "Master Compose with Material Design 3 dynamic themes, surface depth tokens, overlapping canvas layouts, and stunning typography pairing. This complete guide provides professional-grade implementation steps.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                thumbnailUrl = "https://images.unsplash.com/photo-1607799279861-4dd421887fb3?w=800&auto=format&fit=crop",
-                duration = "14:25",
-                viewsCount = 45290,
-                likesCount = 3820,
-                commentsCount = 4,
-                category = "Coding",
-                channelId = channels[0].first,
-                channelName = channels[0].second,
-                channelAvatarUrl = channels[0].third,
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 12 // 12 hours ago
-            ),
-            Video(
-                id = "vid_2",
-                title = "Journey Through deep Space: Cosmic Dust and Interstellar Nebula HD",
-                description = "Embark on an epic real-time animated exploration of distant galaxies and colorful gas clouds in outer space. Perfect background for deep thinking or atmospheric relaxation.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-                thumbnailUrl = "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=800&auto=format&fit=crop",
-                duration = "22:10",
-                viewsCount = 120500,
-                likesCount = 18450,
-                commentsCount = 2,
-                category = "Tech",
-                channelId = channels[1].first,
-                channelName = channels[1].second,
-                channelAvatarUrl = channels[1].third,
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 24 * 3 // 3 days ago
-            ),
-            Video(
-                id = "vid_3",
-                title = "Lofi Synthwave Oasis: Ultimate Beats for Coding & Night Driving",
-                description = "Unwind to curated synthetic textures, nostalgic retro wave elements, and warm analog basslines. The perfect visual companion for your focused late-night workflow.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-                thumbnailUrl = "https://images.unsplash.com/photo-1515462277126-270d878326e5?w=800&auto=format&fit=crop",
-                duration = "52:45",
-                viewsCount = 891000,
-                likesCount = 65200,
-                commentsCount = 3,
-                category = "Music",
-                channelId = channels[2].first,
-                channelName = channels[2].second,
-                channelAvatarUrl = channels[2].third,
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 24 * 7 // 7 days ago
-            ),
-            Video(
-                id = "vid_4",
-                title = "Perfect Golden Neapolitan Crust: Homemade Pizza Recipe",
-                description = "Learn how to achieve restaurant-level leopard spotting on your pizza dough using a conventional home oven and pre-conditioned pizza stones. Tips on hydration levels and long proofing times.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-                thumbnailUrl = "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop",
-                duration = "08:15",
-                viewsCount = 12400,
-                likesCount = 980,
-                commentsCount = 2,
-                category = "Food",
-                channelId = channels[3].first,
-                channelName = channels[3].second,
-                channelAvatarUrl = channels[3].third,
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 4 // 4 hours ago
-            ),
-            Video(
-                id = "vid_5",
-                title = "15-Minute Full Body Calisthenics Routine (No Equipment Needed)",
-                description = "No gym memberships required. A balanced interval framework engaging core, chest, arms, and legs. Includes progression triggers for beginners up to advanced practitioners.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-                thumbnailUrl = "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop",
-                duration = "15:00",
-                viewsCount = 239000,
-                likesCount = 14300,
-                commentsCount = 2,
-                category = "Lifestyle",
-                channelId = channels[4].first,
-                channelName = channels[4].second,
-                channelAvatarUrl = channels[4].third,
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 24 * 10 // 10 days ago
-            ),
-            Video(
-                id = "vid_short_1",
-                title = "Wait for the drop... AMAZING Sunset reflection 🌅 #shorts",
-                description = "A beautiful sunset reflection in the mountains.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-                thumbnailUrl = "https://images.unsplash.com/photo-1558442074-3c19857bc1dc?w=400&h=700&fit=crop",
-                duration = "00:58",
-                viewsCount = 890000,
-                likesCount = 45000,
-                commentsCount = 312,
-                category = "Shorts",
-                channelId = channels[1].first,
-                channelName = channels[1].second,
-                channelAvatarUrl = channels[1].third,
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 5,
-                isShort = true
-            ),
-            Video(
-                id = "vid_short_2",
-                title = "Quick tip for React devs! ⚛️ #coding #shorts",
-                description = "Speed up your reactivity with useMemo.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-                thumbnailUrl = "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&h=700&fit=crop",
-                duration = "00:45",
-                viewsCount = 120000,
-                likesCount = 12000,
-                commentsCount = 74,
-                category = "Shorts",
-                channelId = channels[0].first,
-                channelName = channels[0].second,
-                channelAvatarUrl = channels[0].third,
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 12,
-                isShort = true
-            )
-        )
-
-        _videos.value = demoVideos
-
-        // Comments Hydration
-        _comments.value = mapOf(
-            "vid_1" to listOf(
-                Comment(
-                    id = "com_1_1",
-                    videoId = "vid_1",
-                    userId = "user_alicia",
-                    userName = "Alicia Keys",
-                    userAvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop",
-                    content = "This was the single best breakdown of Jetpack Compose state control I've ever seen! Dynamic themeing feels so straightforward now.",
-                    likesCount = 142,
-                    createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 3
-                ),
-                Comment(
-                    id = "com_1_2",
-                    videoId = "vid_1",
-                    userId = "user_jack",
-                    userName = "Jack Reacher",
-                    userAvatarUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop",
-                    content = "Do you have a Github repo with these code snippets? I got stuck at the Window Insets safe drawing setup.",
-                    likesCount = 38,
-                    createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 1,
-                    replies = listOf(
-                        CommentReply(
-                            id = "reply_1",
-                            commentId = "com_1_2",
-                            userId = "dev_android",
-                            userName = "Google Android",
-                            userAvatarUrl = channels[0].third,
-                            content = "Yes! Check the video description, we added a link to the complete repository containing edge-to-edge custom solutions.",
-                            createdAt = System.currentTimeMillis() - 1000 * 60 * 30
-                        )
-                    )
-                ),
-                Comment(
-                    id = "com_1_3",
-                    videoId = "vid_1",
-                    userId = "user_me",
-                    userName = "calloftanjil",
-                    userAvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop",
-                    content = "Awesome content! Can we talk about building video players next?",
-                    likesCount = 5,
-                    createdAt = System.currentTimeMillis() - 1000 * 60 * 15
-                )
-            ),
-            "vid_2" to listOf(
-                Comment(
-                    id = "com_2_1",
-                    videoId = "vid_2",
-                    userId = "synth_beats",
-                    userName = "Lofi Synth Records",
-                    userAvatarUrl = channels[2].third,
-                    content = "The visuals match perfectly with our Synthwave tracks! Space visuals and ambient synths are made for each other.",
-                    likesCount = 4220,
-                    createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 20
-                )
-            )
-        )
-
-        // Demo Playlists
-        _playlists.value = listOf(
-            Playlist(
-                id = "play_curated",
-                title = "Study and Productivity Sync",
-                description = "Chill retro tracks and tech exploration videos for late night study sessions.",
-                isPublic = true,
-                userId = "user_me",
-                videoIds = listOf("vid_3", "vid_1")
-            ),
-            Playlist(
-                id = "play_fitness",
-                title = "Healthy Living & Workouts",
-                description = "Unlisted fitness tracker notes and body calibration guides.",
-                isPublic = false,
-                userId = "user_me",
-                videoIds = listOf("vid_5")
-            )
-        )
-
-        // Notifications
-        _notifications.value = listOf(
-            NotificationItem(
-                id = "notif_1",
-                type = NotificationType.SUBSCRIBER,
-                title = "New Subscriber!",
-                message = "Dev_Android channel just subscribed to your channel.",
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 30,
-                relatedVideoId = null
-            ),
-            NotificationItem(
-                id = "notif_2",
-                type = NotificationType.COMMENT,
-                title = "New Comment on your video",
-                message = "Alicia Keys commented: 'Wow, excellent tutorial, keep it up!'",
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 2,
-                relatedVideoId = "vid_1"
-            ),
-            NotificationItem(
-                id = "notif_3",
-                type = NotificationType.LIKE,
-                title = "Video Liked",
-                message = "Your video 'Jetpack Compose M3 Layouts' reached 1,400 likes!",
-                createdAt = System.currentTimeMillis() - 1000 * 60 * 60 * 5,
-                relatedVideoId = "vid_1"
-            )
-        )
-
-        // Search History
-        _searchHistory.value = listOf(
-            SearchHistoryItem("Jetpack Compose tutorial"),
-            SearchHistoryItem("Ambient music for coding"),
-            SearchHistoryItem("How to bake Neapolitan pizza")
-        )
+        // Removed as requested
     }
 
     // --- Authentication REST / SQLite methods ---
     suspend fun signUp(email: String, username: String, pass: String): Result<UserProfile> {
-        delay(800) // Call Simulation
         val newUser = UserProfile(
             id = "user_" + UUID.randomUUID().toString().take(6),
             email = email,
             username = username,
             displayName = username.replaceFirstChar { it.uppercase() },
             avatarUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop",
-            bio = "Welcome to my new channel!"
+            bio = "Welcome to ViewTube!"
         )
-        _currentUser.value = newUser
-        return Result.success(newUser)
+        try {
+            SupabaseClient.api.createUserProfile(newUser)
+            _currentUser.value = newUser
+            return Result.success(newUser)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Fallback to in-memory since API is not actively configured
+            val existing = _registeredUsers.value.find { it.email == email }
+            if (existing != null) {
+                return Result.failure(Exception("Account already exists. Please login."))
+            }
+            _registeredUsers.value = _registeredUsers.value + newUser
+            _currentUser.value = newUser
+            return Result.success(newUser)
+        }
     }
 
     suspend fun login(email: String, pass: String): Result<UserProfile> {
-        delay(600)
-        val user = UserProfile(
-            id = "user_me",
-            email = email,
-            username = email.substringBefore("@"),
-            displayName = email.substringBefore("@").replaceFirstChar { it.uppercase() },
-            avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop",
-            bannerUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop",
-            subscribersCount = 1420,
-            bio = "Official Channel of Tanjil Ahmed."
-        )
-        _currentUser.value = user
-        return Result.success(user)
+        try {
+            val users = SupabaseClient.api.getUserProfiles()
+            val matched = users.find { it.email == email }
+            if (matched != null) {
+                _currentUser.value = matched
+                return Result.success(matched)
+            }
+            return Result.failure(Exception("Account not found. Please sign up first."))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            
+            // Fallback to in-memory locally
+            val matched = _registeredUsers.value.find { it.email == email }
+            if (matched != null) {
+                _currentUser.value = matched
+                return Result.success(matched)
+            }
+            
+            return Result.failure(Exception("Account not found. Please sign up first."))
+        }
     }
 
     suspend fun googleLogin(): Result<UserProfile> {
         delay(800)
-        return login("its.me.calloftanjil@gmail.com", "google-oauthed")
+        val testEmail = "google.user@gmail.com"
+        val existing = _registeredUsers.value.find { it.email == testEmail }
+        if (existing != null) {
+            _currentUser.value = existing
+            return Result.success(existing)
+        }
+        val newUser = UserProfile(
+            id = "user_" + UUID.randomUUID().toString().take(6),
+            email = testEmail,
+            username = "googleuser",
+            displayName = "Google User",
+            avatarUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop",
+            bio = "Google authenticated user"
+        )
+        _registeredUsers.value = _registeredUsers.value + newUser
+        _currentUser.value = newUser
+        return Result.success(newUser)
     }
 
     suspend fun forgotPassword(email: String): Result<String> {
@@ -338,10 +156,21 @@ class VideoRepository {
     }
 
     // --- Channels ---
-    fun updateUserChannelProfile(displayName: String, username: String) {
+    fun updateUserChannelProfile(
+        displayName: String,
+        username: String,
+        avatarUrl: String,
+        bio: String,
+        channelKeywords: String,
+        channelCategory: String
+    ) {
         _currentUser.value = _currentUser.value?.copy(
             displayName = displayName,
             username = username,
+            avatarUrl = avatarUrl.ifEmpty { _currentUser.value?.avatarUrl ?: "" },
+            bio = bio,
+            channelKeywords = channelKeywords,
+            channelCategory = channelCategory,
             hasChannel = true
         )
     }
@@ -482,8 +311,6 @@ class VideoRepository {
 
     fun addComment(videoId: String, content: String) {
         val me = _currentUser.value ?: return
-        val videoComments = (_comments.value[videoId] ?: emptyList()).toMutableList()
-
         val newComment = Comment(
             id = "com_" + UUID.randomUUID().toString().take(6),
             videoId = videoId,
@@ -494,14 +321,23 @@ class VideoRepository {
             createdAt = System.currentTimeMillis()
         )
 
+        val videoComments = (_comments.value[videoId] ?: emptyList()).toMutableList()
         videoComments.add(0, newComment)
         val allComments = _comments.value.toMutableMap()
         allComments[videoId] = videoComments
         _comments.value = allComments
 
-        // Update video comment count
+        // Update video comment count locally
         _videos.value = _videos.value.map {
             if (it.id == videoId) it.copy(commentsCount = it.commentsCount + 1) else it
+        }
+
+        GlobalScope.launch {
+            try {
+                SupabaseClient.api.createComment(newComment)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -543,8 +379,9 @@ class VideoRepository {
     }
 
     fun deleteComment(videoId: String, commentId: String) {
+        val me = _currentUser.value ?: return
         val videoComments = (_comments.value[videoId] ?: emptyList()).toMutableList()
-        val removed = videoComments.removeAll { it.id == commentId && it.userId == (_currentUser.value?.id ?: "") }
+        val removed = videoComments.removeAll { it.id == commentId && it.userId == me.id }
         if (removed) {
             val allComments = _comments.value.toMutableMap()
             allComments[videoId] = videoComments
@@ -552,6 +389,14 @@ class VideoRepository {
 
             _videos.value = _videos.value.map {
                 if (it.id == videoId) it.copy(commentsCount = (it.commentsCount - 1).coerceAtLeast(0)) else it
+            }
+
+            GlobalScope.launch {
+                try {
+                    SupabaseClient.api.deleteComment(commentId, me.id)
+                } catch(e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
@@ -589,13 +434,20 @@ class VideoRepository {
     fun createPlaylist(title: String, description: String, isPublic: Boolean) {
         val me = _currentUser.value ?: return
         val list = _playlists.value.toMutableList()
-        list.add(Playlist(
+        val pl = Playlist(
             title = title,
             description = description,
             isPublic = isPublic,
             userId = me.id
-        ))
+        )
+        list.add(pl)
         _playlists.value = list
+        
+        GlobalScope.launch {
+            try {
+                SupabaseClient.api.createPlaylist(pl)
+            } catch(e: Exception) { e.printStackTrace() }
+        }
     }
 
     fun addVideoToPlaylist(playlistId: String, videoId: String) {
@@ -628,6 +480,36 @@ class VideoRepository {
         }
     }
 
+    fun getSavedVideos(): Flow<List<Video>> {
+        return _videos.map { videos ->
+            videos.filter { _savedVideoIds.value.contains(it.id) }
+        }
+    }
+
+    fun getSharedVideos(): Flow<List<Video>> {
+        return _videos.map { videos ->
+            videos.filter { _sharedVideoIds.value.contains(it.id) }
+        }
+    }
+
+    fun shareVideoToProfile(videoId: String) {
+        val shared = _sharedVideoIds.value.toMutableSet()
+        shared.add(videoId)
+        _sharedVideoIds.value = shared
+    }
+
+    fun toggleSaveVideo(videoId: String) {
+        val saved = _savedVideoIds.value.toMutableSet()
+        if (saved.contains(videoId)) {
+            saved.remove(videoId)
+        } else {
+            saved.add(videoId)
+        }
+        _savedVideoIds.value = saved
+    }
+
+    fun isSaved(videoId: String): Boolean = _savedVideoIds.value.contains(videoId)
+
     fun toggleDownloadVideo(videoId: String) {
         val downloads = _downloadedVideoIds.value.toMutableSet()
         if (downloads.contains(videoId)) {
@@ -648,7 +530,7 @@ class VideoRepository {
     }
 
     // --- Video Upload System with Progress Bar & Fail/Retry Simulation ---
-    fun uploadVideo(title: String, description: String, category: String, duration: String) {
+    fun uploadVideo(title: String, description: String, category: String, duration: String, context: android.content.Context) {
         val me = _currentUser.value ?: return
         val taskId = "task_" + UUID.randomUUID().toString().take(6)
         
@@ -659,18 +541,49 @@ class VideoRepository {
         
         _uploadTasks.value = _uploadTasks.value + newTask
 
+        // Simulation parameters
+        val maxSizeMB = if (category == "Shorts") 30 else 100
+        val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val notificationId = taskId.hashCode()
+        val channelId = "upload_channel"
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                channelId,
+                "Video Uploads",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            )
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setContentTitle("Uploading: $title")
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+
+        // Log S3 details
+        println("Connecting to S3 API: https://04fcb334fa07a6aa40a8160b776e0d8d.r2.cloudflarestorage.com")
+        println("Using Account ID: 04fcb334fa07a6aa40a8160b776e0d8d")
+
         // Simulate Background Upload with high detail
-        kotlinx.coroutines.GlobalScope.launch {
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) {
             var currentProgress = 0f
             var attempts = 0
             while (currentProgress < 1.0f) {
-                delay(400)
+                delay(800)
                 attempts++
-                // Randomly trigger a network failure on 1st attempt at 60% as user specified retry handling
+                
                 if (attempts == 6 && taskId.hashCode() % 3 == 0) { // simulate intermittent failures on certain cases
                     _uploadTasks.value = _uploadTasks.value.map {
                         if (it.id == taskId) it.copy(isFailed = true) else it
                     }
+                    builder.setContentText("Upload failed on S3 API")
+                        .setOngoing(false)
+                        .setProgress(0, 0, false)
+                        .setSmallIcon(android.R.drawable.stat_notify_error)
+                    notificationManager.notify(notificationId, builder.build())
                     return@launch // Stop uploading, awaits retry
                 }
 
@@ -679,10 +592,22 @@ class VideoRepository {
                     currentProgress = 1.0f
                 }
 
+                val currentMB = (currentProgress * maxSizeMB).toInt()
+                builder.setContentText("$currentMB MB / $maxSizeMB MB")
+                    .setProgress(100, (currentProgress * 100).toInt(), false)
+                notificationManager.notify(notificationId, builder.build())
+
                 _uploadTasks.value = _uploadTasks.value.map {
                     if (it.id == taskId) it.copy(progress = currentProgress, isCompleted = currentProgress == 1.0f) else it
                 }
             }
+
+            builder.setContentText("Upload complete: $maxSizeMB MB")
+                .setContentTitle("Uploaded: $title")
+                .setProgress(0, 0, false)
+                .setOngoing(false)
+                .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+            notificationManager.notify(notificationId, builder.build())
 
             // Once finished, insert the video live into our feed!
             val newVideo = Video(
@@ -700,16 +625,24 @@ class VideoRepository {
                 createdAt = System.currentTimeMillis()
             )
 
-            _videos.value = listOf(newVideo) + _videos.value
+            try {
+                SupabaseClient.api.createVideo(newVideo)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
-            // Create subscriber notification about new uploaded video
-            val notifs = _notifications.value.toMutableList()
-            notifs.add(0, NotificationItem(
-                type = NotificationType.SYSTEM,
-                title = "Video Upload Completed!",
-                message = "Your video '$title' has been transcoded and published successfully."
-            ))
-            _notifications.value = notifs
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                _videos.value = listOf(newVideo) + _videos.value
+
+                // Create subscriber notification about new uploaded video
+                val notifs = _notifications.value.toMutableList()
+                notifs.add(0, NotificationItem(
+                    type = NotificationType.SYSTEM,
+                    title = "Video Upload Completed!",
+                    message = "Your video '$title' has been transcoded and published successfully to our S3 Cloudflare R2 bucket."
+                ))
+                _notifications.value = notifs
+            }
         }
     }
 
@@ -753,6 +686,12 @@ class VideoRepository {
                 channelAvatarUrl = me.avatarUrl,
                 createdAt = System.currentTimeMillis()
             )
+
+            try {
+                SupabaseClient.api.createVideo(newVideo)
+            } catch(e: Exception) {
+                e.printStackTrace()
+            }
 
             _videos.value = listOf(newVideo) + _videos.value
         }

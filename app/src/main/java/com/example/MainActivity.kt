@@ -1,11 +1,14 @@
 package com.example
 
 import android.os.Bundle
+import android.os.Build
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -38,11 +41,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
 
 class MainActivity : ComponentActivity() {
+    private val mainViewModel: VideoViewModel by viewModels()
+    private var isPlayerActive = false
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (isPlayerActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        mainViewModel.togglePipMode(isInPictureInPictureMode)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val mainViewModel: VideoViewModel = viewModel()
+
             val themeMode by mainViewModel.themeMode.collectAsState()
             val isSystemDark = isSystemInDarkTheme()
             val isAppDarkTheme = when (themeMode) {
@@ -56,7 +74,12 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavigationCoordinator(viewModel = mainViewModel)
+                    AppNavigationCoordinator(
+                        viewModel = mainViewModel,
+                        onRouteChanged = { route ->
+                            isPlayerActive = route == "player"
+                        }
+                    )
                 }
             }
         }
@@ -67,23 +90,40 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigationCoordinator(
     viewModel: VideoViewModel,
+    onRouteChanged: (String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    LaunchedEffect(currentRoute) {
+        onRouteChanged(currentRoute)
+    }
+
     val currentUser by viewModel.currentUser.collectAsState()
     val activeVideo by viewModel.activeVideo.collectAsState()
     val isFullScreen by viewModel.isFullScreen.collectAsState()
+    val hasSeenOnboarding by viewModel.hasSeenOnboarding.collectAsState()
+    
+    val themeMode by viewModel.themeMode.collectAsState()
+    val isSystemDark = isSystemInDarkTheme()
+    val isAppDarkTheme = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemDark
+    }
 
-    // Redirect to Authentication if not logged in
-    val initialRoute = if (currentUser == null) "auth" else "home"
+    // Redirect to Authentication or Onboarding if not logged in
+    val initialRoute = if (currentUser == null) {
+        if (!hasSeenOnboarding) "onboarding" else "auth"
+    } else "home"
 
     // Hide Bottom controls on specific screens
     val isAuthScreen = currentRoute == "auth"
+    val isOnboardingScreen = currentRoute == "onboarding"
     val isPlayerScreen = currentRoute == "player"
-    val shouldHideBottomControls = isAuthScreen || isPlayerScreen || isFullScreen
+    val shouldHideBottomControls = isAuthScreen || isOnboardingScreen || isPlayerScreen || isFullScreen
 
     Scaffold(
         bottomBar = {
@@ -99,7 +139,7 @@ fun AppNavigationCoordinator(
                                 }
                             },
                             onClose = {
-                                viewModel.performLogout() // or just stop video: let's clear playing state
+                                viewModel.clearActiveVideo()
                                 viewModel.changePlaybackSpeed("1.0x")
                             }
                         )
@@ -124,8 +164,8 @@ fun AppNavigationCoordinator(
                                     }
                                 }
                             },
-                            icon = { Icon(if (currentRoute == "home") Icons.Default.Home else Icons.Outlined.Home, contentDescription = "Home", modifier = Modifier.size(24.dp)) },
-                            label = { Text("Home", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            icon = { Icon(if (currentRoute == "home") Icons.Default.Home else Icons.Outlined.Home, contentDescription = "Home", modifier = Modifier.size(26.dp)) },
+                            label = { Text("Home", maxLines = 1, softWrap = false, fontSize = 11.sp) },
                             modifier = Modifier.testTag("nav_home")
                         )
 
@@ -139,14 +179,14 @@ fun AppNavigationCoordinator(
                                     }
                                 }
                             },
-                            icon = { Icon(if (currentRoute == "shorts") Icons.Default.Bolt else Icons.Outlined.Bolt, contentDescription = "Shorts", modifier = Modifier.size(24.dp)) },
-                            label = { Text("Shorts", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            icon = { Icon(if (currentRoute == "shorts") Icons.Default.PlayCircle else Icons.Outlined.PlayCircle, contentDescription = "Shorts", modifier = Modifier.size(26.dp)) },
+                            label = { Text("Shorts", maxLines = 1, softWrap = false, fontSize = 11.sp) },
                             modifier = Modifier.testTag("nav_shorts")
                         )
 
                         // Option 3: a plus icon
                         NavigationBarItem(
-                            selected = currentRoute == "upload",
+                            selected = false,
                             onClick = {
                                 if (currentRoute != "upload") {
                                     navController.navigate("upload") {
@@ -154,8 +194,18 @@ fun AppNavigationCoordinator(
                                     }
                                 }
                             },
-                            icon = { Icon(Icons.Default.Add, contentDescription = "Upload", modifier = Modifier.size(28.dp)) },
-                            label = { Text("Create", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            icon = { 
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isAppDarkTheme) androidx.compose.ui.graphics.Color(0xFF272727) else androidx.compose.ui.graphics.Color(0xFFF1F1F1))
+                                        .border(1.dp, if (isAppDarkTheme) androidx.compose.ui.graphics.Color.DarkGray else androidx.compose.ui.graphics.Color.LightGray, CircleShape)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = "Upload", modifier = Modifier.size(28.dp))
+                                }
+                            },
                             modifier = Modifier.testTag("nav_upload")
                         )
 
@@ -169,52 +219,31 @@ fun AppNavigationCoordinator(
                                     }
                                 }
                             },
-                            icon = { Icon(if (currentRoute == "subscriptions") Icons.Default.AccountCircle else Icons.Outlined.AccountCircle, contentDescription = "Subscriptions", modifier = Modifier.size(24.dp)) },
-                            label = { Text("Following", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            icon = { Icon(if (currentRoute == "subscriptions") Icons.Default.Subscriptions else Icons.Outlined.Subscriptions, contentDescription = "Following", modifier = Modifier.size(26.dp)) },
+                            label = { Text("Following", maxLines = 1, softWrap = false, fontSize = 11.sp) },
                             modifier = Modifier.testTag("nav_subscriptions")
                         )
 
-                        // Option 4: a circle. Next to the circle is the profile option.
-                        val isProfileSelected = currentRoute == "library"
+                        // Option 4: Notifications
+                        val isNotificationsSelected = currentRoute == "notifications"
                         NavigationBarItem(
-                            selected = isProfileSelected,
+                            selected = isNotificationsSelected,
                             onClick = {
-                                if (!isProfileSelected) {
-                                    navController.navigate("library") {
+                                if (!isNotificationsSelected) {
+                                    navController.navigate("notifications") {
                                         launchSingleTop = true
                                     }
                                 }
                             },
                             icon = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    // The Circle (the fourth option is a circle)
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (isProfileSelected) MaterialTheme.colorScheme.error 
-                                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                            )
-                                    )
-
-                                    // Next to the circle is the profile option (avatar indicator)
-                                    AsyncImage(
-                                        model = currentUser?.avatarUrl?.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" }
-                                            ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop",
-                                        contentDescription = "Profile option",
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (isNotificationsSelected) Icons.Default.Notifications else Icons.Outlined.Notifications,
+                                    contentDescription = "Notifications",
+                                    modifier = Modifier.size(26.dp)
+                                )
                             },
-                            label = { Text("Profile", maxLines = 1, softWrap = false, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                            modifier = Modifier.testTag("nav_profile")
+                            label = { Text("Notifications", maxLines = 1, softWrap = false, fontSize = 11.sp) },
+                            modifier = Modifier.testTag("nav_notifications")
                         )
                     }
                 }
@@ -229,6 +258,18 @@ fun AppNavigationCoordinator(
                 .fillMaxSize()
                 .padding(if (shouldHideBottomControls) PaddingValues(0.dp) else innerPadding)
         ) {
+            // Onboarding 
+            composable("onboarding") {
+                OnboardingScreen(
+                    onFinish = {
+                        viewModel.completeOnboarding()
+                        navController.navigate("auth") {
+                            popUpTo("onboarding") { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             // Authentication
             composable("auth") {
                 AuthScreen(
@@ -248,6 +289,7 @@ fun AppNavigationCoordinator(
                     onNavigateToSearch = { navController.navigate("search") },
                     onNavigateToNotifications = { navController.navigate("notifications") },
                     onNavigateToChannel = { channelId -> navController.navigate("channel/$channelId") },
+                    onNavigateToLibrary = { navController.navigate("library") },
                     onNavigateToShorts = { navController.navigate("shorts") },
                     onVideoClick = { video ->
                         viewModel.playVideo(video)
@@ -311,6 +353,20 @@ fun AppNavigationCoordinator(
                     onNavigateToPlaylistDetail = { playlistId -> navController.navigate("playlist/$playlistId") },
                     onNavigateToChannel = { channelId -> navController.navigate("channel/$channelId") },
                     onNavigateToCreateChannel = { navController.navigate("create_channel") },
+                    onVideoClick = { video ->
+                        viewModel.playVideo(video)
+                        navController.navigate("player")
+                    },
+                    navController = navController
+                )
+            }
+
+            // Watch History Detail Screen
+            composable("history") {
+                HistoryScreen(
+                    viewModel = viewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToChannel = { channelId -> navController.navigate("channel/$channelId") },
                     onVideoClick = { video ->
                         viewModel.playVideo(video)
                         navController.navigate("player")

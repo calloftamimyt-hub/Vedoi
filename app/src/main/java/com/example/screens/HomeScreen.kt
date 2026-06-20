@@ -82,6 +82,7 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToChannel: (String) -> Unit,
+    onNavigateToLibrary: () -> Unit,
     onNavigateToShorts: () -> Unit,
     onVideoClick: (Video) -> Unit,
     modifier: Modifier = Modifier
@@ -119,27 +120,6 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    // Notifications
-                    IconButton(onClick = onNavigateToNotifications) {
-                        BadgedBox(
-                            badge = {
-                                if (unreadNotifs) {
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
-                                    )
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = if (unreadNotifs) Icons.Default.NotificationsActive else Icons.Outlined.Notifications,
-                                contentDescription = "Notifications",
-                                modifier = Modifier.size(26.dp),
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
                     // Search
                     IconButton(onClick = onNavigateToSearch) {
                         Icon(
@@ -151,22 +131,21 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // Channel Avatar Profile Link
+                    // Channel Avatar Profile Link (Moved to Top App Bar as requested)
                     IconButton(
-                        onClick = { onNavigateToChannel("user_me") },
+                        onClick = onNavigateToLibrary,
                         modifier = Modifier.size(36.dp)
                     ) {
                         AsyncImage(
                             model = currentUser?.avatarUrl?.ifEmpty { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop" }
                                 ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop",
-                            contentDescription = "My Profile",
-                            contentScale = ContentScale.Crop,
+                            contentDescription = "Profile",
                             modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
+                                .size(28.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
                         )
                     }
-
                     Spacer(modifier = Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
