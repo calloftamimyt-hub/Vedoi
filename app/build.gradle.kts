@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -118,3 +120,27 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
+val projectBuildDir = layout.buildDirectory
+val projectRootDir = rootDir
+
+tasks.register("copyApkToRoot") {
+    val srcProvider = projectBuildDir.file("outputs/apk/debug/app-debug.apk")
+    val destFile = File(projectRootDir, "ViewTube-debug.apk")
+    
+    inputs.file(srcProvider)
+    outputs.file(destFile)
+    
+    doLast {
+        val srcFile = srcProvider.get().asFile
+        if (srcFile.exists()) {
+            srcFile.copyTo(destFile, overwrite = true)
+            println("Auto-copied APK to root: ${destFile.absolutePath}")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToRoot")
+}
+
