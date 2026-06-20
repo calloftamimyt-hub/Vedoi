@@ -71,9 +71,6 @@ class VideoRepository {
         }
     }
 
-    private fun setupDemoData() {
-        // Removed as requested
-    }
 
     // --- Authentication REST / SQLite methods ---
     suspend fun signUp(email: String, username: String, pass: String): Result<UserProfile> {
@@ -127,23 +124,37 @@ class VideoRepository {
 
     suspend fun googleLogin(): Result<UserProfile> {
         delay(800)
-        val testEmail = "google.user@gmail.com"
-        val existing = _registeredUsers.value.find { it.email == testEmail }
-        if (existing != null) {
-            _currentUser.value = existing
-            return Result.success(existing)
+        val email = "tamim.google@gmail.com"
+        try {
+            val users = SupabaseClient.api.getUserProfiles()
+            val matched = users.find { it.email == email }
+            if (matched != null) {
+                _currentUser.value = matched
+                return Result.success(matched)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+
+        // Create new profile if not found
         val newUser = UserProfile(
             id = "user_" + UUID.randomUUID().toString().take(6),
-            email = testEmail,
-            username = "googleuser",
-            displayName = "Google User",
-            avatarUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop",
-            bio = "Google authenticated user"
+            email = email,
+            username = "tamim_ahmed",
+            displayName = "Tamim Ahmed",
+            avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop",
+            bio = "Official Channel of Tamim Ahmed."
         )
-        _registeredUsers.value = _registeredUsers.value + newUser
-        _currentUser.value = newUser
-        return Result.success(newUser)
+        
+        try {
+            SupabaseClient.api.createUserProfile(newUser)
+            _currentUser.value = newUser
+            return Result.success(newUser)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _currentUser.value = newUser // still allow locally
+            return Result.success(newUser)
+        }
     }
 
     suspend fun forgotPassword(email: String): Result<String> {

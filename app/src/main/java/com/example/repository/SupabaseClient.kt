@@ -8,9 +8,11 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
+import com.example.BuildConfig
+
 object SupabaseClient {
-    private const val BASE_URL = "https://grvvtjxhltadmwbsddri.supabase.co/rest/v1/"
-    private const val API_KEY = "sb_publishable_39yws0_9ye5fUKOP9EevqQ__GCvkJ-_"
+    private val BASE_URL = BuildConfig.SUPABASE_URL + "/rest/v1/"
+    private val API_KEY = BuildConfig.SUPABASE_ANON_KEY
 
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
