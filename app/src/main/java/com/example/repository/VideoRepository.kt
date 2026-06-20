@@ -633,9 +633,8 @@ class VideoRepository {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
 
-        // Log S3 details
-        println("Connecting to S3 API: https://04fcb334fa07a6aa40a8160b776e0d8d.r2.cloudflarestorage.com")
-        println("Using Account ID: 04fcb334fa07a6aa40a8160b776e0d8d")
+        // Log upload details
+        println("Connecting to media storage servers...")
 
         // Simulate Background Upload with high detail
         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) {
@@ -644,18 +643,6 @@ class VideoRepository {
             while (currentProgress < 1.0f) {
                 delay(800)
                 attempts++
-                
-                if (attempts == 6 && taskId.hashCode() % 3 == 0) { // simulate intermittent failures on certain cases
-                    _uploadTasks.value = _uploadTasks.value.map {
-                        if (it.id == taskId) it.copy(isFailed = true) else it
-                    }
-                    builder.setContentText("Upload failed on S3 API")
-                        .setOngoing(false)
-                        .setProgress(0, 0, false)
-                        .setSmallIcon(android.R.drawable.stat_notify_error)
-                    notificationManager.notify(notificationId, builder.build())
-                    return@launch // Stop uploading, awaits retry
-                }
 
                 currentProgress += 0.15f
                 if (currentProgress >= 1.0f) {

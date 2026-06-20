@@ -191,13 +191,13 @@ fun LibraryScreen(
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "Uploading... ${(task.progress * 100).toInt()}% to S3 Cloudflare",
+                                            text = "Uploading... ${(task.progress * 100).toInt()}%",
                                             fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     } else if (task.isFailed) {
                                         Text(
-                                            text = "Upload Interrupted! Cloudflare S3 bucket connection failed. Click retry.",
+                                            text = "Upload Interrupted! Connection issues. Click retry.",
                                             fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.error,
                                             fontWeight = FontWeight.SemiBold
